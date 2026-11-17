@@ -1,0 +1,32 @@
+[Event "Caro-Kann Defense: d4 Heist"]
+[Date "2026.10.30"]
+[Result "*"]
+[Variant "Standard"]
+[ECO "B12"]
+[Opening "Caro-Kann Defense: Advance Variation, Botvinnik-Carls Defense"]
+[StudyName "Caro-Kann Defense"]
+[ChapterName "d4 Heist"]
+[ChapterURL "https://lichess.org/study/studypath/chapterpath"]
+[Annotator "https://lichess.org/@/Tendoskria"]
+[UTCDate "2026.10.30"]
+[UTCTime "12:21:27"]
+[Orientation "black"]
+
+1. e4 c6 2. d4 d5 3. e5 c5 4. c3 { [%csl Gd4][%cal Gc3d4,Rc5d4,Gd1d4] } 4... Nc6 { [%csl Gd4][%cal Gc3d4,Rc5d4,Rc6d4,Gd1d4] } 5. Nf3 { [%csl Gd4][%cal Gc3d4,Gf3d4,Rc5d4,Rc6d4,Gd1d4] } 5... cxd4 6. cxd4 { [%csl Rf3][%cal Gd1d4,Gf3d4,Rc8g4,Rg4f3] } 6... Bg4 { [%csl Gd4][%cal Rg4f3,Bd1f3,Rc6d4] } 7. h3 $146 { [%cal Gg4f3] } 7... Bxf3 8. Qxf3 Nxd4 9. Qd3 Nc6 10. Qg3 e6 { [%csl Bf7,Be6,Bd5,Bh7,Bg7] } *
+
+
+[Event "Caro-Kann Defense: d4 Pressure"]
+[Date "2026.10.30"]
+[Result "*"]
+[Variant "Standard"]
+[ECO "B12"]
+[Opening "Caro-Kann Defense: Advance Variation, Botvinnik-Carls Defense"]
+[StudyName "Caro-Kann Defense"]
+[ChapterName "d4 Pressure"]
+[ChapterURL "https://lichess.org/study/studypath/chapterpath"]
+[Annotator "https://lichess.org/@/Tendoskria"]
+[UTCDate "2026.10.30"]
+[UTCTime "12:31:50"]
+[Orientation "black"]
+
+1. e4 c6 2. d4 d5 3. e5 c5 4. c3 Nc6 5. Nf3 cxd4 6. cxd4 Bg4 7. Be2 $146 { [%csl Ge6,Rd4][%cal Ge7e6,Rg8e7,Re7f5,Rf5d4,Rc6d4] } 7... e6 { [%csl Rd4][%cal Rg8e7,Re7f5,Rf5d4,Rc6d4] } 8. O-O { [%csl Rd4][%cal Rg8e7,Re7f5,Rf5d4] } 8... Nge7 { [%csl Rd4][%cal Re7f5,Rf5d4] } 9. Nc3 { [%csl Rd4][%cal Re7f5,Rf5d4] } 9... Nf5 { [%csl Rd4][%cal Rf5d4] } 10. Be3 { [%csl Rd4][%cal Rf5d4,Ge3d4,Rc6d4] } 10... Be7 { [%csl Rd4] } 11. a3 { [%csl Rd4] } 11... O-O { [%csl Rd4] } *

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Entraîne-toi à jouer les lignes de tes études Lichess : une position, le bon coup à trouver."
+    />
+    <title>Lichess Study Trainer</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <main id="app" class="layout">
+      <svg
+        id="board"
+        class="board"
+        viewBox="0 0 480 480"
+        role="application"
+        aria-label="Échiquier"
+      ></svg>
+
+      <aside class="panel">
+        <h1>Lichess Study Trainer</h1>
+
+        <div class="controls">
+          <select id="study" aria-label="Étude" hidden></select>
+          <select id="chapter" aria-label="Chapitre"></select>
+          <select id="mode" aria-label="Départ">
+            <option value="random">Position aléatoire</option>
+            <option value="beginning">Depuis le début</option>
+          </select>
+          <button id="new-position" class="primary" type="button">Nouvelle position</button>
+        </div>
+
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+        <p id="chapter-name" class="meta"></p>
+        <div id="moves" class="moves" aria-label="Coups joués"></div>
+
+        <div class="row">
+          <button id="hint" type="button">Indice</button>
+          <button id="solution" type="button">Voir le coup</button>
+        </div>
+        <label class="meta"
+          ><input type="checkbox" id="show-moves" checked /> Afficher les coups déjà joués</label
+        >
+
+        <details id="import" class="import">
+          <summary>Charger une étude Lichess</summary>
+          <form id="lichess-form" class="row">
+            <input
+              id="source"
+              type="text"
+              placeholder="Pseudo ou lien d’étude Lichess"
+              aria-label="Pseudo ou lien d’étude Lichess"
+              autocomplete="off"
+            />
+            <button type="submit">Charger</button>
+          </form>
+          <p class="meta">
+            Un pseudo charge toutes tes études publiques ; un lien comme
+            https://lichess.org/study/F6sn8qZD charge cette étude. Tu peux aussi coller un PGN.
+          </p>
+          <textarea id="pgn-text" placeholder="Colle un PGN…" aria-label="PGN"></textarea>
+          <div class="row">
+            <input type="file" id="pgn-file" accept=".pgn,.txt" aria-label="Fichier PGN" />
+            <button id="load-pgn" type="button">Charger le PGN</button>
+          </div>
+        </details>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
