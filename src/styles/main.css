@@ -70,10 +70,16 @@ body {
   padding: 16px;
 }
 
-.board {
+.board-wrap {
+  position: relative;
   flex: none;
   width: min(calc(100vw - 420px), calc(100vh - 36px), 860px);
   min-width: 320px;
+}
+
+.board {
+  display: block;
+  width: 100%;
   border-radius: 3px;
   box-shadow: 0 2px 12px rgb(0 0 0 / 40%);
   touch-action: none;
@@ -95,7 +101,7 @@ body {
     flex-direction: column;
     padding: 8px;
   }
-  .board {
+  .board-wrap {
     width: 100%;
     min-width: 0;
   }
@@ -533,5 +539,138 @@ button:hover,
 @media (prefers-reduced-motion: reduce) {
   .board.hit {
     animation: none;
+  }
+}
+
+/* ---------- Victory banner, confetti and sparkles ---------- */
+@keyframes victory-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes victory-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, -20px, 0) rotate(0deg);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--drift), var(--fall), 0) rotate(var(--spin));
+    opacity: 0;
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1) rotate(90deg);
+    opacity: 1;
+  }
+}
+
+.victory {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 3px;
+  background: radial-gradient(circle, rgb(0 0 0 / 45%), rgb(0 0 0 / 15%) 75%);
+  pointer-events: none;
+  animation: victory-fade 0.8s ease-out 0.35s both;
+}
+
+.victory-card {
+  position: relative;
+  padding: 24px 32px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 40px rgb(0 0 0 / 45%);
+  text-align: center;
+  pointer-events: auto;
+  animation: victory-in 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.35s both;
+}
+
+.victory-title {
+  margin: 0;
+  color: #f5c542;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.victory-subtitle {
+  margin: 4px 0 16px;
+  color: var(--muted);
+}
+
+.victory-card .row {
+  margin-bottom: 0;
+}
+
+.victory-fx {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  width: 8px;
+  height: 14px;
+  background: var(--color);
+  opacity: 0;
+  animation: confetti-fall var(--dur) cubic-bezier(0.2, 0.6, 0.4, 1) var(--delay) forwards;
+}
+
+.confetti.round {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.sparkle {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  width: var(--size);
+  height: var(--size);
+  background: var(--color);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  opacity: 0;
+  animation: twinkle var(--dur) ease-in-out var(--delay) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti,
+  .sparkle {
+    display: none;
+  }
+  .victory-card {
+    animation: victory-fade 0.6s ease-out 0.35s both;
   }
 }

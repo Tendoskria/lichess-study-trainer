@@ -10,7 +10,8 @@ export const messages = {
   hint: 'Indice : regarde les annotations ou la case de départ en surbrillance.',
   solution: (sans: readonly string[]): string =>
     `Coup de l’étude : ${sans.join(' ou ')}. Joue-le pour continuer.`,
-  finished: 'Ligne terminée ✔ Lance une nouvelle position.',
+  /** Read by screen readers; sighted users get the victory banner. */
+  lineCompleteAnnouncement: 'Ligne terminée. Bravo !',
   chapter: (name: string): string => `Chapitre : ${name}`,
   chapterHidden: 'Chapitre : ?',
   untitledChapter: 'Sans titre',

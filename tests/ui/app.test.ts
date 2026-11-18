@@ -111,12 +111,14 @@ describe('App', () => {
     };
 
     /** Starts the first chapter from the beginning: the opponent plays 1. e4, black to answer. */
-    const startOnBlackToMove = (): { board: SVGSVGElement; messageBefore: string } => {
+    const startOnBlackToMove = (
+      pgn = caroKann,
+    ): { board: SVGSVGElement; messageBefore: string } => {
       vi.useFakeTimers();
       app = new App($('#app'), { settings: memoryStore(), rng: () => 0 });
       app.start();
       $<HTMLSelectElement>('#mode').value = 'beginning';
-      app.importPgn(caroKann, {});
+      app.importPgn(pgn, {});
       vi.advanceTimersByTime(600);
 
       const board = $<SVGSVGElement>('#board');
@@ -150,6 +152,57 @@ describe('App', () => {
       expect(board.classList.contains('hit')).toBe(false);
       expect($('#message').textContent).toContain('Correct');
       expect($('#announcer').textContent).toBe('');
+    });
+
+    describe('completing a line', () => {
+      const SHORT_LINE = '[Event "S: t"]\n[Orientation "black"]\n\n1. e4 c6 *';
+      const victory = (): HTMLElement => $('#victory');
+
+      const finishLine = (): SVGSVGElement => {
+        const { board } = startOnBlackToMove(SHORT_LINE);
+        press(board, 'c7');
+        press(board, 'c6');
+        return board;
+      };
+
+      it('celebrates with the victory banner', () => {
+        finishLine();
+        expect(victory().hidden).toBe(false);
+        expect(document.querySelectorAll('.confetti')).toHaveLength(56);
+        expect($('#announcer').textContent).toBe('Ligne terminée. Bravo !');
+      });
+
+      it('does not celebrate while the line goes on', () => {
+        const { board } = startOnBlackToMove();
+        press(board, 'c7');
+        press(board, 'c6');
+        expect(victory().hidden).toBe(true);
+      });
+
+      it('goes away when browsing the history, with Escape, or on a new position', () => {
+        finishLine();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+        expect(victory().hidden).toBe(true);
+
+        app?.newPosition();
+        vi.advanceTimersByTime(600);
+        const { board } = { board: $<SVGSVGElement>('#board') };
+        press(board, 'c7');
+        press(board, 'c6');
+        expect(victory().hidden).toBe(false);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(victory().hidden).toBe(true);
+
+        app?.newPosition();
+        expect(victory().hidden).toBe(true);
+      });
+
+      it('starts a new exercise from the banner button', () => {
+        finishLine();
+        $<HTMLButtonElement>('#victory-new').click();
+        expect(victory().hidden).toBe(true);
+        expect($('#message').textContent).toContain('noirs');
+      });
     });
   });
 });

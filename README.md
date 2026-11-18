@@ -18,6 +18,8 @@ l’application affiche une position tirée de ton étude et tu dois retrouver l
 - Filtres par étude et par chapitre ; le nom du chapitre est masqué jusqu’à ta première bonne réponse.
 - Une erreur déclenche un effet façon jeu vidéo (échiquier qui tremble, flash rouge, case jouée à tort
   en surbrillance) ; réduit automatiquement si le système demande moins d’animations.
+- Une ligne terminée déclenche une bannière de victoire qui apparaît en fondu, avec confettis et
+  étincelles (réduits à un simple fondu si le système demande moins d’animations).
 - Indice (annotations de l’auteur ou case de départ) et « Voir le coup ».
 - Les flèches et cases colorées de ton étude (`[%cal]`, `[%csl]`) s’affichent après une bonne réponse.
 - Échiquier SVG : clic ou glisser-déposer, coups légaux et captures signalés comme sur Lichess.
@@ -67,6 +69,7 @@ src/
 │  ├─ board.ts        Rendu SVG + saisie (clic, glisser-déposer)
 │  ├─ geometry.ts     Calculs de coordonnées purs
 │  ├─ move-list.ts    Liste des coups
+│  ├─ victory.ts      Bannière de victoire (confettis, étincelles)
 │  ├─ import-panel.ts Formulaire de chargement (Pseudo / PGN)
 │  └─ messages.ts     Tous les textes affichés
 ├─ assets/pieces/     Jeu de pièces SVG
