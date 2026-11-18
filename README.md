@@ -16,6 +16,8 @@ l’application affiche une position tirée de ton étude et tu dois retrouver l
   publiques, ou un lien d’étude) ou **PGN** (collé ou depuis un fichier).
 - Page d’accueil qui te guide tant qu’aucune étude n’est chargée.
 - Filtres par étude et par chapitre ; le nom du chapitre est masqué jusqu’à ta première bonne réponse.
+- Une erreur déclenche un effet façon jeu vidéo (échiquier qui tremble, flash rouge, case jouée à tort
+  en surbrillance) ; réduit automatiquement si le système demande moins d’animations.
 - Indice (annotations de l’auteur ou case de départ) et « Voir le coup ».
 - Les flèches et cases colorées de ton étude (`[%cal]`, `[%csl]`) s’affichent après une bonne réponse.
 - Échiquier SVG : clic ou glisser-déposer, coups légaux et captures signalés comme sur Lichess.

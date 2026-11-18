@@ -8,6 +8,7 @@
   --accent: #629924;
   --ok: #3d7d1a;
   --error: #c33;
+  --hit: #e5304f;
 
   --sq-light: #f0d9b5;
   --sq-dark: #b58863;
@@ -277,6 +278,7 @@ textarea {
 .layer-targets,
 .layer-shapes,
 .layer-pieces,
+.layer-feedback,
 .layer-drag {
   pointer-events: none;
 }
@@ -465,4 +467,71 @@ button:hover,
 
 #import-form .primary {
   width: 100%;
+}
+
+/* ---------- "Hit" feedback on a wrong answer ---------- */
+@keyframes board-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-10px);
+  }
+  30% {
+    transform: translateX(8px);
+  }
+  45% {
+    transform: translateX(-6px);
+  }
+  60% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+@keyframes hit-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes hit-square-fade {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.board.hit {
+  animation: board-shake 0.4s ease-out;
+}
+
+.hit-stop {
+  stop-color: var(--hit);
+}
+
+.hit-flash {
+  fill: url('#hit-vignette');
+  pointer-events: none;
+  animation: hit-fade 0.6s ease-out forwards;
+}
+
+.hit-square {
+  fill: var(--hit);
+  pointer-events: none;
+  animation: hit-square-fade 0.7s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board.hit {
+    animation: none;
+  }
 }

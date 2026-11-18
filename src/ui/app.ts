@@ -44,6 +44,7 @@ export class App {
     mode: HTMLSelectElement;
     message: HTMLElement;
     chapterName: HTMLElement;
+    announcer: HTMLElement;
     showMoves: HTMLInputElement;
   };
 
@@ -62,6 +63,7 @@ export class App {
       mode: requireElement(root, '#mode'),
       message: requireElement(root, '#message'),
       chapterName: requireElement(root, '#chapter-name'),
+      announcer: requireElement(root, '#announcer'),
       showMoves: requireElement(root, '#show-moves'),
     };
 
@@ -143,6 +145,7 @@ export class App {
 
     this.session = session;
     this.chapterRevealed = false;
+    this.els.announcer.textContent = '';
     this.setStatus(messages.yourTurn(session.orientation), 'info');
     this.render();
     this.continueLine();
@@ -202,13 +205,16 @@ export class App {
     if (!session) return;
 
     const result = session.attempt(from, to);
-    if (result.status === 'wrong') {
-      this.setStatus(messages.wrong(result.tries), 'error');
-    } else if (result.status === 'correct') {
+    if (result.status === 'correct') {
       this.chapterRevealed = true;
+      this.els.announcer.textContent = '';
       this.setStatus(messages.correct(result.san), 'ok');
     }
     this.render();
+    if (result.status === 'wrong') {
+      this.board.flashError(to);
+      this.els.announcer.textContent = messages.wrongAnnouncement(result.tries);
+    }
     if (result.status === 'correct') this.continueLine();
   }
 

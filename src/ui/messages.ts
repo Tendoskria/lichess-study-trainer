@@ -5,8 +5,8 @@ export const messages = {
   yourTurn: (color: 'white' | 'black'): string =>
     `Tu joues les ${color === 'white' ? 'blancs' : 'noirs'} : trouve le coup de ton étude.`,
   correct: (san: string): string => `✔ Correct : ${san}`,
-  wrong: (tries: number): string =>
-    `✘ Ce n’est pas le coup de l’étude (essai ${tries}). Réessaie, ou demande un indice.`,
+  /** Read by screen readers only: sighted users get the visual "hit" effect instead. */
+  wrongAnnouncement: (tries: number): string => `Mauvais coup (essai ${tries}).`,
   hint: 'Indice : regarde les annotations ou la case de départ en surbrillance.',
   solution: (sans: readonly string[]): string =>
     `Coup de l’étude : ${sans.join(' ou ')}. Joue-le pour continuer.`,

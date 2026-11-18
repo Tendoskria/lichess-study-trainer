@@ -13,6 +13,8 @@ import { pieceImage } from './pieces';
 
 const FILES = 'abcdefgh';
 const DRAG_THRESHOLD_PX = 6;
+/** Must outlast the CSS animations of the "hit" effect. */
+const HIT_DURATION_MS = 700;
 
 export interface BoardState {
   readonly orientation: Orientation;
@@ -45,6 +47,7 @@ export class BoardView {
   private selected: Square | null = null;
   private drag: DragState | null = null;
   private drawnOrientation: Orientation | null = null;
+  private feedbackTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly pieceNodes = new Map<Square, SVGImageElement>();
   private readonly layers = {
     squares: svgElement('g', { class: 'layer-squares' }),
@@ -52,6 +55,7 @@ export class BoardView {
     targets: svgElement('g', { class: 'layer-targets' }),
     pieces: svgElement('g', { class: 'layer-pieces' }),
     shapes: svgElement('g', { class: 'layer-shapes' }),
+    feedback: svgElement('g', { class: 'layer-feedback' }),
     drag: svgElement('g', { class: 'layer-drag' }),
   };
 
@@ -59,7 +63,7 @@ export class BoardView {
     private readonly root: SVGSVGElement,
     private readonly handlers: BoardHandlers,
   ) {
-    root.replaceChildren(...Object.values(this.layers));
+    root.replaceChildren(this.createDefs(), ...Object.values(this.layers));
     root.addEventListener('pointerdown', this.onPointerDown);
     root.addEventListener('pointermove', this.onPointerMove);
     root.addEventListener('pointerup', this.onPointerUp);
@@ -67,6 +71,7 @@ export class BoardView {
   }
 
   destroy(): void {
+    clearTimeout(this.feedbackTimer);
     this.root.removeEventListener('pointerdown', this.onPointerDown);
     this.root.removeEventListener('pointermove', this.onPointerMove);
     this.root.removeEventListener('pointerup', this.onPointerUp);
@@ -83,6 +88,44 @@ export class BoardView {
     this.drawTargets(state.orientation);
     this.drawPieces(state);
     this.drawShapes(state);
+  }
+
+  /**
+   * Video-game style "hit" feedback for a wrong answer: the board shakes, a red vignette
+   * flashes and the square the user tried to play lights up. (CSS honours reduced motion.)
+   */
+  flashError(square: Square): void {
+    const { x, y } = squareOrigin(square, this.state?.orientation ?? 'white');
+    this.layers.feedback.replaceChildren(
+      svgElement('rect', { x, y, width: SQUARE_SIZE, height: SQUARE_SIZE, class: 'hit-square' }),
+      svgElement('rect', { width: BOARD_SIZE, height: BOARD_SIZE, class: 'hit-flash' }),
+    );
+
+    this.root.classList.remove('hit');
+    void this.root.getBoundingClientRect(); // force a reflow so the animation restarts
+    this.root.classList.add('hit');
+
+    clearTimeout(this.feedbackTimer);
+    this.feedbackTimer = setTimeout(() => {
+      this.layers.feedback.replaceChildren();
+      this.root.classList.remove('hit');
+    }, HIT_DURATION_MS);
+  }
+
+  private createDefs(): SVGDefsElement {
+    const gradient = svgElement('radialGradient', {
+      id: 'hit-vignette',
+      cx: '50%',
+      cy: '50%',
+      r: '75%',
+    });
+    gradient.append(
+      svgElement('stop', { offset: '45%', class: 'hit-stop', 'stop-opacity': 0 }),
+      svgElement('stop', { offset: '100%', class: 'hit-stop', 'stop-opacity': 0.85 }),
+    );
+    const defs = svgElement('defs');
+    defs.append(gradient);
+    return defs;
   }
 
   private drawSquares(orientation: Orientation): void {
