@@ -26,6 +26,7 @@ describe('App', () => {
   };
 
   beforeEach(() => {
+    window.location.hash = '';
     document.body.innerHTML = /<body>([\s\S]*)<\/body>/.exec(html)?.[1] ?? '';
   });
 
@@ -34,13 +35,22 @@ describe('App', () => {
     app = null;
   });
 
-  it('shows an empty board and the import panel when nothing is stored', () => {
+  const visibleViews = (): string[] =>
+    [...document.querySelectorAll<HTMLElement>('main > section')]
+      .filter((section) => !section.hidden)
+      .map((section) => section.id);
+
+  it('shows the welcome page when no study is stored', () => {
     app = new App($('#app'), { settings: memoryStore() });
     app.start();
+    expect(visibleViews()).toEqual(['view-welcome']);
+  });
 
-    expect(document.querySelectorAll('#board .layer-pieces image')).toHaveLength(32);
-    expect($('#message').textContent).toContain('pseudo Lichess');
-    expect($<HTMLDetailsElement>('#import').open).toBe(true);
+  it('opens the settings page from a deep link, even without studies', () => {
+    window.location.hash = '#/settings';
+    app = new App($('#app'), { settings: memoryStore() });
+    app.start();
+    expect(visibleViews()).toEqual(['view-settings']);
   });
 
   it('loads a PGN, starts an exercise and fills the selectors', () => {
@@ -54,6 +64,7 @@ describe('App', () => {
     expect($<HTMLSelectElement>('#chapter').options).toHaveLength(3);
     expect($('#chapter-name').textContent).toBe('Chapitre : ?');
     expect($('#message').textContent).toContain('noirs');
+    expect(visibleViews()).toEqual(['view-trainer']);
     expect(settings.read('username')).toBe('Tendoskria');
     expect(settings.read('pgn')).toBe(caroKann);
   });
@@ -62,7 +73,7 @@ describe('App', () => {
     app = new App($('#app'), { settings: memoryStore({ 'lichess-study-trainer:pgn': caroKann }) });
     app.start();
     expect($<HTMLSelectElement>('#chapter').options.length).toBeGreaterThan(1);
-    expect($<HTMLDetailsElement>('#import').open).toBe(false);
+    expect(visibleViews()).toEqual(['view-trainer']);
   });
 
   it('rejects a PGN without playable lines and keeps the current state', () => {

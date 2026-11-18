@@ -45,10 +45,6 @@ function toPieces(chess: Chess): PieceOnSquare[] {
     );
 }
 
-export function initialPieces(): PieceOnSquare[] {
-  return toPieces(new Chess());
-}
-
 function replay(sans: readonly string[]): {
   chess: Chess;
   played: string[];

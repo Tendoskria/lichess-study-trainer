@@ -1,18 +1,17 @@
 import { parsePgn } from '../domain/pgn';
 import { hasShapes } from '../domain/shapes';
 import { chaptersOfStudy, isTrainable, studyNames } from '../domain/study';
-import { initialPieces, startSession } from '../domain/training';
+import { startSession } from '../domain/training';
 import type { Rng, StartMode, TrainingSession } from '../domain/training';
-import { NO_SHAPES } from '../domain/types';
 import type { Chapter, Square } from '../domain/types';
 import type { FetchLike } from '../services/lichess';
 import type { SettingsStore } from '../services/storage';
 import { BoardView } from './board';
 import { requireElement } from './dom';
 import { ImportPanel } from './import-panel';
-import type { StatusKind } from './import-panel';
 import { messages } from './messages';
 import { MoveList } from './move-list';
+import { Router } from './router';
 
 const ALL = '__all__';
 
@@ -31,11 +30,14 @@ interface Option {
   readonly label: string;
 }
 
-/** Wires the DOM, the board and the training session together. */
+type StatusKind = 'info' | 'ok' | 'error';
+
+/** Wires the DOM, the board, the pages and the training session together. */
 export class App {
   private readonly board: BoardView;
   private readonly moveList: MoveList;
   private readonly importPanel: ImportPanel;
+  private readonly router: Router;
   private readonly els: {
     study: HTMLSelectElement;
     chapter: HTMLSelectElement;
@@ -43,7 +45,6 @@ export class App {
     message: HTMLElement;
     chapterName: HTMLElement;
     showMoves: HTMLInputElement;
-    importDetails: HTMLDetailsElement;
   };
 
   private chapters: Chapter[] = [];
@@ -62,7 +63,6 @@ export class App {
       message: requireElement(root, '#message'),
       chapterName: requireElement(root, '#chapter-name'),
       showMoves: requireElement(root, '#show-moves'),
-      importDetails: requireElement(root, '#import'),
     };
 
     this.board = new BoardView(requireElement<SVGSVGElement>(root, '#board'), {
@@ -73,15 +73,20 @@ export class App {
     this.moveList = new MoveList(requireElement(root, '#moves'), (ply) => this.browseTo(ply));
     this.importPanel = new ImportPanel(
       root,
-      {
-        importPgn: (text, source) => this.importPgn(text, source),
-        setStatus: (text, kind) => this.setStatus(text, kind),
-      },
+      { importPgn: (text, source) => this.importPgn(text, source) },
       options.fetch,
+    );
+    this.router = new Router(
+      {
+        trainer: requireElement(root, '#view-trainer'),
+        settings: requireElement(root, '#view-settings'),
+        welcome: requireElement(root, '#view-welcome'),
+      },
+      () => this.chapters.length > 0,
     );
   }
 
-  /** Binds events and restores the last loaded study, if any. */
+  /** Binds events, restores the last loaded study, and shows the right page. */
   start(): void {
     requireElement(this.root, '#new-position').addEventListener('click', () => this.newPosition());
     requireElement(this.root, '#hint').addEventListener('click', () => this.showHint());
@@ -103,21 +108,23 @@ export class App {
     this.importPanel.setUsername(this.options.settings.read('username') ?? '');
     const saved = this.options.settings.read('pgn');
     if (saved && this.loadChapters(saved)) this.newPosition();
-    else this.showEmptyState();
+    this.router.start();
   }
 
   dispose(): void {
     this.cancelOpponent();
+    this.router.stop();
     document.removeEventListener('keydown', this.onKeyDown);
     this.board.destroy();
   }
 
-  /** Replaces the loaded chapters and starts a new exercise. Returns false if nothing is playable. */
+  /** Replaces the loaded chapters, starts an exercise and shows it. Returns false if nothing is playable. */
   importPgn(text: string, source: { username?: string }): boolean {
     if (!this.loadChapters(text)) return false;
     this.options.settings.write('pgn', text);
     if (source.username) this.options.settings.write('username', source.username);
     this.newPosition();
+    this.router.navigate('trainer');
     return true;
   }
 
@@ -132,10 +139,7 @@ export class App {
       this.setStatus(messages.invalidChapter, 'error');
       return;
     }
-    if (!session) {
-      this.showEmptyState();
-      return;
-    }
+    if (!session) return;
 
     this.session = session;
     this.chapterRevealed = false;
@@ -252,22 +256,6 @@ export class App {
     this.render();
   }
 
-  private showEmptyState(): void {
-    this.cancelOpponent();
-    this.session = null;
-    this.board.render({
-      orientation: 'white',
-      pieces: initialPieces(),
-      lastMove: null,
-      shapes: NO_SHAPES,
-      interactive: false,
-    });
-    this.moveList.render([], 0, true);
-    this.els.chapterName.textContent = '';
-    this.setStatus(messages.emptyState, 'info');
-    this.els.importDetails.open = true;
-  }
-
   private render(): void {
     const session = this.session;
     if (!session) return;
@@ -293,7 +281,7 @@ export class App {
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     const session = this.session;
-    if (!session || this.isTypingTarget(event.target)) return;
+    if (!session || this.router.current !== 'trainer' || this.isTypingTarget(event.target)) return;
 
     const ply = this.navigationTarget(event.key, session.ply, session.history.length);
     if (ply === null) return;
