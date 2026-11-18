@@ -102,6 +102,33 @@ describe('BoardView', () => {
     expect(onMove).toHaveBeenCalledWith('e2', 'e4');
   });
 
+  it('plays the hit effect on a square, restarts it on repeat and cleans up afterwards', () => {
+    vi.useFakeTimers();
+    try {
+      const svg = svgRoot();
+      const view = new BoardView(svg, {
+        canSelect: () => false,
+        targetsFrom: () => [],
+        onMove: vi.fn(),
+      });
+      view.render(state());
+
+      view.flashError('e4');
+      view.flashError('e4');
+      expect(svg.classList.contains('hit')).toBe(true);
+      expect(svg.querySelectorAll('.hit-flash')).toHaveLength(1);
+      const square = svg.querySelector('.hit-square');
+      expect(square?.getAttribute('x')).toBe(String(4 * SQUARE_SIZE));
+      expect(square?.getAttribute('y')).toBe(String(4 * SQUARE_SIZE));
+
+      vi.advanceTimersByTime(700);
+      expect(svg.classList.contains('hit')).toBe(false);
+      expect(svg.querySelectorAll('.hit-flash, .hit-square')).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('ignores input when the board is not interactive', () => {
     const svg = svgRoot();
     const onMove = vi.fn();

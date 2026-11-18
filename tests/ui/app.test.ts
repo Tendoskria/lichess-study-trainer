@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsStore } from '../../src/services/storage';
 import { App } from '../../src/ui/app';
 
@@ -33,6 +33,7 @@ describe('App', () => {
   afterEach(() => {
     app?.dispose();
     app = null;
+    vi.useRealTimers();
   });
 
   const visibleViews = (): string[] =>
@@ -93,5 +94,62 @@ describe('App', () => {
     expect($('#moves .current').getAttribute('data-ply')).toBe(String(before - 1 || 1));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
     expect(document.querySelector('#moves .current')).toBeNull();
+  });
+
+  describe('answering a position', () => {
+    /** Presses a square of the (black-oriented) 480px board mounted at (0, 0). */
+    const press = (svg: SVGSVGElement, square: string): void => {
+      const file = square.charCodeAt(0) - 97;
+      const rank = Number(square.charAt(1)) - 1;
+      const event = new MouseEvent('pointerdown', {
+        clientX: (7 - file) * 60 + 30,
+        clientY: rank * 60 + 30,
+        bubbles: true,
+      });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      svg.dispatchEvent(event);
+    };
+
+    /** Starts the first chapter from the beginning: the opponent plays 1. e4, black to answer. */
+    const startOnBlackToMove = (): { board: SVGSVGElement; messageBefore: string } => {
+      vi.useFakeTimers();
+      app = new App($('#app'), { settings: memoryStore(), rng: () => 0 });
+      app.start();
+      $<HTMLSelectElement>('#mode').value = 'beginning';
+      app.importPgn(caroKann, {});
+      vi.advanceTimersByTime(600);
+
+      const board = $<SVGSVGElement>('#board');
+      board.getBoundingClientRect = () => new DOMRect(0, 0, 480, 480);
+      board.setPointerCapture = () => undefined;
+      board.hasPointerCapture = () => false;
+      return { board, messageBefore: $('#message').textContent ?? '' };
+    };
+
+    it('plays the hit effect on a wrong move instead of showing an error message', () => {
+      const { board, messageBefore } = startOnBlackToMove();
+
+      press(board, 'a7');
+      press(board, 'a6'); // the study expects ...c6
+
+      expect(board.classList.contains('hit')).toBe(true);
+      expect(board.querySelectorAll('.hit-flash')).toHaveLength(1);
+      expect($('#message').textContent).toBe(messageBefore);
+      expect($('#announcer').textContent).toBe('Mauvais coup (essai 1).');
+
+      vi.advanceTimersByTime(700);
+      expect(board.classList.contains('hit')).toBe(false);
+    });
+
+    it('does not play the effect on the right move', () => {
+      const { board } = startOnBlackToMove();
+
+      press(board, 'c7');
+      press(board, 'c6');
+
+      expect(board.classList.contains('hit')).toBe(false);
+      expect($('#message').textContent).toContain('Correct');
+      expect($('#announcer').textContent).toBe('');
+    });
   });
 });
