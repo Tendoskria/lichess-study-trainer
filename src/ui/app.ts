@@ -11,6 +11,7 @@ import { requireElement } from './dom';
 import { ImportPanel } from './import-panel';
 import { messages } from './messages';
 import { MoveList } from './move-list';
+import { VictoryOverlay } from './victory';
 import { Router } from './router';
 
 const ALL = '__all__';
@@ -38,6 +39,7 @@ export class App {
   private readonly moveList: MoveList;
   private readonly importPanel: ImportPanel;
   private readonly router: Router;
+  private readonly victory: VictoryOverlay;
   private readonly els: {
     study: HTMLSelectElement;
     chapter: HTMLSelectElement;
@@ -77,6 +79,11 @@ export class App {
       root,
       { importPgn: (text, source) => this.importPgn(text, source) },
       options.fetch,
+    );
+    this.victory = new VictoryOverlay(
+      requireElement(root, '#victory'),
+      { onNewPosition: () => this.newPosition() },
+      options.rng,
     );
     this.router = new Router(
       {
@@ -132,6 +139,7 @@ export class App {
 
   newPosition(): void {
     this.cancelOpponent();
+    this.victory.hide();
     const mode: StartMode = this.els.mode.value === 'beginning' ? 'beginning' : 'random';
 
     let session: TrainingSession | null;
@@ -223,7 +231,8 @@ export class App {
     const session = this.session;
     if (!session) return;
     if (session.isFinished) {
-      this.setStatus(messages.finished, 'ok');
+      this.els.announcer.textContent = messages.lineCompleteAnnouncement;
+      this.victory.show();
       return;
     }
     if (!session.awaitingOpponent) return;
@@ -258,6 +267,7 @@ export class App {
 
   private browseTo(ply: number): void {
     if (!this.session) return;
+    this.victory.hide();
     this.session.goTo(ply);
     this.render();
   }
@@ -288,6 +298,10 @@ export class App {
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     const session = this.session;
     if (!session || this.router.current !== 'trainer' || this.isTypingTarget(event.target)) return;
+    if (event.key === 'Escape' && this.victory.visible) {
+      this.victory.hide();
+      return;
+    }
 
     const ply = this.navigationTarget(event.key, session.ply, session.history.length);
     if (ply === null) return;
