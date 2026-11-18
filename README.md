@@ -12,8 +12,9 @@ l’application affiche une position tirée de ton étude et tu dois retrouver l
 - Position aléatoire à n’importe quel moment d’une ligne, ou départ depuis le début du chapitre ;
   l’adversaire répond avec les coups de l’étude (au hasard parmi les variantes).
 - Toutes les variantes de l’étude sont acceptées comme bonnes réponses.
-- Chargement par **pseudo Lichess** (toutes tes études publiques), par **lien d’étude**, ou par PGN
-  collé / fichier.
+- Page dédiée au chargement (bouton réglages ⚙) avec deux sources : **Pseudo** (toutes tes études
+  publiques, ou un lien d’étude) ou **PGN** (collé ou depuis un fichier).
+- Page d’accueil qui te guide tant qu’aucune étude n’est chargée.
 - Filtres par étude et par chapitre ; le nom du chapitre est masqué jusqu’à ta première bonne réponse.
 - Indice (annotations de l’auteur ou case de départ) et « Voir le coup ».
 - Les flèches et cases colorées de ton étude (`[%cal]`, `[%csl]`) s’affichent après une bonne réponse.
@@ -30,7 +31,7 @@ npm ci
 npm run dev        # http://localhost:5173
 ```
 
-Puis déplie « Charger une étude Lichess » et saisis ton pseudo.
+Au premier lancement, la page d’accueil te mène à la page de chargement : saisis ton pseudo Lichess.
 
 ## Scripts
 
@@ -59,11 +60,12 @@ src/
 │  ├─ lichess.ts      Client de l’API Lichess (fetch injectable)
 │  └─ storage.ts      Persistance locale tolérante aux pannes
 ├─ ui/
-│  ├─ app.ts          Contrôleur : relie DOM, échiquier et session
+│  ├─ app.ts          Contrôleur : relie pages, échiquier et session
+│  ├─ router.ts       Choix de la page affichée (hash `#/settings`)
 │  ├─ board.ts        Rendu SVG + saisie (clic, glisser-déposer)
 │  ├─ geometry.ts     Calculs de coordonnées purs
 │  ├─ move-list.ts    Liste des coups
-│  ├─ import-panel.ts Formulaire de chargement
+│  ├─ import-panel.ts Formulaire de chargement (Pseudo / PGN)
 │  └─ messages.ts     Tous les textes affichés
 ├─ assets/pieces/     Jeu de pièces SVG
 └─ styles/main.css    Thème (variables CSS) et mise en page
@@ -74,6 +76,8 @@ Principes :
 
 - **Dépendances à sens unique** : `ui → domain` et `ui → services`, jamais l’inverse. Le domaine
   n’utilise ni `document`, ni `fetch`, ni timers.
+- **Navigation par hash** (`#/settings`) : liens, bouton Précédent et favoris fonctionnent sans
+  bibliothèque de routage, et sans configuration serveur sur GitHub Pages.
 - **L’échiquier ne connaît pas les règles** : il reçoit un état à afficher et délègue la légalité
   des coups via `BoardHandlers`.
 - **Effets de bord injectés** (`fetch`, stockage, générateur aléatoire, délais) pour des tests

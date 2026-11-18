@@ -2,7 +2,6 @@ import { LichessError } from '../services/lichess';
 
 /** All user-facing strings, in one place (French). */
 export const messages = {
-  emptyState: 'Entre ton pseudo Lichess ci-dessous pour charger tes études.',
   yourTurn: (color: 'white' | 'black'): string =>
     `Tu joues les ${color === 'white' ? 'blancs' : 'noirs'} : trouve le coup de ton étude.`,
   correct: (san: string): string => `✔ Correct : ${san}`,
@@ -19,6 +18,7 @@ export const messages = {
   allStudies: (count: number): string => `Toutes les études (${count})`,
   allChapters: (count: number): string => `Tous les chapitres (${count})`,
   loading: 'Téléchargement…',
+  noFileChosen: 'Aucun fichier choisi',
   noChapters: 'Aucune ligne exploitable dans ce PGN.',
   invalidChapter: 'Ce chapitre contient un coup illégal et ne peut pas être joué.',
   lichessError: (error: unknown): string => {
