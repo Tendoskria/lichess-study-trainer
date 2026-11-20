@@ -15,7 +15,9 @@ l’application affiche une position tirée de ton étude et tu dois retrouver l
 - Page dédiée au chargement (bouton réglages ⚙) avec deux sources : **Pseudo** (toutes tes études
   publiques, ou un lien d’étude) ou **PGN** (collé ou depuis un fichier).
 - Page d’accueil qui te guide tant qu’aucune étude n’est chargée.
-- Filtres par étude et par chapitre ; le nom du chapitre est masqué jusqu’à ta première bonne réponse.
+- Sélection **multiple** d’études et de chapitres (listes à cases à cocher, validées à la fermeture). Rien de coché = tout.
+  Dès qu’une ou plusieurs études sont cochées, seuls leurs chapitres sont proposés, regroupés par section d’étude ;
+  le nom du chapitre est masqué jusqu’à ta première bonne réponse.
 - Une erreur déclenche un effet façon jeu vidéo (échiquier qui tremble, flash rouge, case jouée à tort
   en surbrillance) ; réduit automatiquement si le système demande moins d’animations.
 - Une ligne terminée déclenche une bannière de victoire qui apparaît en fondu, avec confettis et
@@ -76,6 +78,7 @@ src/
 │  ├─ move-list.ts    Liste des coups
 │  ├─ victory.ts      Bannière de victoire (confettis, étincelles)
 │  ├─ import-panel.ts Formulaire de chargement (Pseudo / PGN)
+│  ├─ multi-select.ts Liste déroulante à cases à cocher (études, chapitres)
 │  └─ messages.ts     Tous les textes affichés
 ├─ assets/pieces/     Jeu de pièces SVG
 └─ styles/main.css    Thème (variables CSS) et mise en page

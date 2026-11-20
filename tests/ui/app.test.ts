@@ -50,6 +50,10 @@ describe('App', () => {
     vi.useRealTimers();
   });
 
+  const chapterBoxes = (): HTMLInputElement[] => [
+    ...document.querySelectorAll<HTMLInputElement>('#chapter input[type="checkbox"]'),
+  ];
+
   const visibleViews = (): string[] =>
     [...document.querySelectorAll<HTMLElement>('main > section')]
       .filter((section) => !section.hidden)
@@ -76,7 +80,7 @@ describe('App', () => {
 
     expect(app.importPgn(caroKann, { username: 'Tendoskria' })).toBe(true);
 
-    expect($<HTMLSelectElement>('#chapter').options).toHaveLength(3);
+    expect(chapterBoxes()).toHaveLength(2);
     expect($('#chapter-name').textContent).toBe('Chapitre : ?');
     expect($('#message').textContent).toContain('noirs');
     expect(visibleViews()).toEqual(['view-trainer']);
@@ -87,8 +91,86 @@ describe('App', () => {
   it('restores the stored study on start', () => {
     app = new App($('#app'), { settings: memoryStore({ 'lichess-study-trainer:pgn': caroKann }) });
     app.start();
-    expect($<HTMLSelectElement>('#chapter').options.length).toBeGreaterThan(1);
+    expect(chapterBoxes().length).toBeGreaterThan(0);
     expect(visibleViews()).toEqual(['view-trainer']);
+  });
+
+  describe('several studies', () => {
+    const chapter = (study: string, name: string): string =>
+      `[Event "${study}: ${name}"]\n[StudyName "${study}"]\n[ChapterName "${name}"]\n\n1. e4 e5 *`;
+    const THREE_STUDIES = [
+      chapter('A', 'a1'),
+      chapter('B', 'b1'),
+      chapter('A', 'a2'),
+      chapter('C', 'c1'),
+    ].join('\n\n');
+
+    const start = (): void => {
+      app = new App($('#app'), { settings: memoryStore(), rng: () => 0 });
+      app.start();
+      app.importPgn(THREE_STUDIES, {});
+    };
+    const texts = (selector: string): (string | null)[] =>
+      [...document.querySelectorAll(selector)].map((element) => element.textContent);
+    /** Checks the given studies (by position) and closes the list, as a user would. */
+    const pickStudies = (...positions: number[]): void => {
+      const boxes = [...document.querySelectorAll<HTMLInputElement>('#study input')];
+      for (const position of positions) boxes[position]?.click();
+      $<HTMLButtonElement>('#study [data-done]').click();
+    };
+
+    it('lists every study, with the chapters grouped by study, when none is selected', () => {
+      start();
+      expect($<HTMLElement>('#study').hidden).toBe(false);
+      expect(texts('#study label')).toEqual(['A', 'B', 'C']);
+      expect(texts('#chapter legend')).toEqual(['A', 'B', 'C']);
+      expect(texts('#chapter label')).toEqual(['a1', 'a2', 'b1', 'c1']);
+      expect($('#study summary').textContent).toBe('Toutes les études (3)');
+    });
+
+    it('only offers the chapters of the selected studies, one section per study', () => {
+      start();
+      pickStudies(0, 2);
+      expect($('#study summary').textContent).toBe('2 études sélectionnées');
+      expect(texts('#chapter legend')).toEqual(['A', 'C']);
+      expect(texts('#chapter label')).toEqual(['a1', 'a2', 'c1']);
+    });
+
+    it('shows no section heading when a single study is selected', () => {
+      start();
+      pickStudies(1);
+      expect($('#study summary').textContent).toBe('B');
+      expect(document.querySelectorAll('#chapter legend')).toHaveLength(0);
+      expect(texts('#chapter label')).toEqual(['b1']);
+    });
+
+    it('trains on the picked chapters and starts a new position when the list closes', () => {
+      start();
+      const before = $('#message').textContent;
+      document.querySelector<HTMLInputElement>('#chapter input')?.click();
+      $<HTMLButtonElement>('#chapter [data-done]').click();
+      expect($('#chapter summary').textContent).toBe('a1');
+      expect($('#message').textContent).toBe(before);
+      expect($<HTMLElement>('#chapter-name').textContent).toBe('Chapitre : ?');
+    });
+
+    it('forgets the picked chapters of a study that is no longer selected', () => {
+      start();
+      document.querySelectorAll<HTMLInputElement>('#chapter input')[3]?.click(); // c1
+      $<HTMLButtonElement>('#chapter [data-done]').click();
+      expect($('#chapter summary').textContent).toBe('c1');
+
+      pickStudies(0); // only A: c1 is gone, back to "all chapters of A"
+      expect($('#chapter summary').textContent).toBe('Tous les chapitres (2)');
+    });
+
+    it('does not browse the history with the arrow keys while a list has the focus', () => {
+      start();
+      const box = document.querySelector<HTMLInputElement>('#chapter input');
+      const event = new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true });
+      box?.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    });
   });
 
   it('rejects a PGN without playable lines and keeps the current state', () => {

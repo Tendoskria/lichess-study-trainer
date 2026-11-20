@@ -35,6 +35,51 @@ export function chaptersOfStudy(chapters: readonly Chapter[], study: string | nu
   return study === null ? [...chapters] : chapters.filter((chapter) => chapter.study === study);
 }
 
+export interface ChapterEntry {
+  /** Position of the chapter in the full list of loaded chapters (a stable identifier). */
+  readonly index: number;
+  readonly chapter: Chapter;
+}
+
+/** The chapters of one study. */
+export interface StudySection {
+  readonly study: string;
+  readonly entries: readonly ChapterEntry[];
+}
+
+/**
+ * Chapters split into one section per study (in order of first appearance). When `studies` is
+ * not empty, only the sections of those studies are returned; empty means every study.
+ */
+export function chapterSections(
+  chapters: readonly Chapter[],
+  studies: ReadonlySet<string> = new Set(),
+): StudySection[] {
+  return studyNames(chapters)
+    .filter((study) => studies.size === 0 || studies.has(study))
+    .map((study) => ({
+      study,
+      entries: chapters.flatMap((chapter, index) =>
+        chapter.study === study ? [{ index, chapter }] : [],
+      ),
+    }));
+}
+
+/**
+ * Chapters to train on: those picked in `picked` (indexes in `chapters`) among the chapters of
+ * the selected `studies`. An empty selection means "all": no study picked = every study, no
+ * chapter picked (or none still visible) = every chapter of the selected studies.
+ */
+export function selectChapters(
+  chapters: readonly Chapter[],
+  studies: ReadonlySet<string>,
+  picked: ReadonlySet<number>,
+): Chapter[] {
+  const visible = chapterSections(chapters, studies).flatMap((section) => section.entries);
+  const chosen = visible.filter((entry) => picked.has(entry.index));
+  return (chosen.length > 0 ? chosen : visible).map((entry) => entry.chapter);
+}
+
 function allMovesLegal(node: MoveNode, chess: Chess): boolean {
   for (const child of node.children) {
     if (child.san === null) return false;
