@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { hasShapes, parseShapes } from '../src/domain/shapes';
+import { hasShapes, mergeShapes, parseShapes } from '../src/domain/shapes';
+import { NO_SHAPES } from '../src/domain/types';
 
 describe('parseShapes', () => {
   it('reads arrows and highlighted squares', () => {
@@ -21,5 +22,21 @@ describe('parseShapes', () => {
 
   it('returns no shapes for a plain comment', () => {
     expect(hasShapes(parseShapes('just words'))).toBe(false);
+  });
+});
+
+describe('mergeShapes', () => {
+  const a = parseShapes('[%cal Ge2e4][%csl Rd5]');
+  const b = parseShapes('[%cal Gd2d4][%csl Yc3]');
+
+  it('draws both sets of shapes', () => {
+    const merged = mergeShapes(a, b);
+    expect(merged.arrows).toHaveLength(2);
+    expect(merged.marks).toHaveLength(2);
+  });
+
+  it('returns the other set untouched when one is empty', () => {
+    expect(mergeShapes(a, NO_SHAPES)).toBe(a);
+    expect(mergeShapes(NO_SHAPES, b)).toBe(b);
   });
 });

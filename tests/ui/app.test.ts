@@ -128,9 +128,10 @@ describe('App', () => {
     const startOnBlackToMove = (
       pgn = caroKann,
       sound: SoundOutput = stubSound(),
+      settings: SettingsStore = memoryStore(),
     ): { board: SVGSVGElement; messageBefore: string } => {
       vi.useFakeTimers();
-      app = new App($('#app'), { settings: memoryStore(), rng: () => 0, sound });
+      app = new App($('#app'), { settings, rng: () => 0, sound });
       app.start();
       $<HTMLSelectElement>('#mode').value = 'beginning';
       app.importPgn(pgn, {});
@@ -256,6 +257,100 @@ describe('App', () => {
         expect(played(sound)).toEqual(['error']);
       });
     });
+
+    describe('aids (arrows and circles)', () => {
+      const AIDS = 'lichess-study-trainer:aids';
+      /** The opponent opens with an annotated move; the user (black) answers ...c6. */
+      const OPPONENT_ANNOTATED =
+        '[Event "S: t"]\n[Orientation "black"]\n\n1. e4 { [%csl Rd5][%cal Ge2e4] } c6 2. d4 d5 *';
+      /** The author also annotates the user's own move. */
+      const USER_ANNOTATED =
+        '[Event "S: t"]\n[Orientation "black"]\n\n1. e4 c6 { [%csl Rd5][%cal Gc6c5] } 2. d4 d5 *';
+      const shapesOnBoard = (): number =>
+        document.querySelectorAll('#board .mark, #board .arrow').length;
+      const hintMarks = (): number => document.querySelectorAll('#board .mark.shape-Y').length;
+      const playC6 = (board: SVGSVGElement): void => {
+        press(board, 'c7');
+        press(board, 'c6');
+      };
+
+      it('shows the author annotations on the user turn by default', () => {
+        startOnBlackToMove(OPPONENT_ANNOTATED);
+        expect(shapesOnBoard()).toBe(2);
+      });
+
+      it('hides them when the aids are off, whichever side is trained', () => {
+        startOnBlackToMove(OPPONENT_ANNOTATED, stubSound(), memoryStore({ [AIDS]: 'off' }));
+        expect(shapesOnBoard()).toBe(0);
+      });
+
+      it('hides and shows them again when the lightbulb is toggled', () => {
+        startOnBlackToMove(OPPONENT_ANNOTATED);
+        $<HTMLButtonElement>('#aids-toggle').click();
+        expect(shapesOnBoard()).toBe(0);
+        $<HTMLButtonElement>('#aids-toggle').click();
+        expect(shapesOnBoard()).toBe(2);
+      });
+
+      it('also controls the annotations of the move the user just played', () => {
+        const { board } = startOnBlackToMove(USER_ANNOTATED);
+        playC6(board);
+        expect(shapesOnBoard()).toBe(2);
+        $<HTMLButtonElement>('#aids-toggle').click();
+        expect(shapesOnBoard()).toBe(0);
+      });
+
+      it('gives the user time to read the annotations only when they are shown', () => {
+        const { board } = startOnBlackToMove(USER_ANNOTATED);
+        playC6(board);
+        vi.advanceTimersByTime(600);
+        expect(document.querySelectorAll('#moves .move')).toHaveLength(2); // opponent still waiting
+        vi.advanceTimersByTime(1200);
+        expect(document.querySelectorAll('#moves .move')).toHaveLength(3);
+      });
+
+      it('does not slow the opponent down when the aids are off', () => {
+        const { board } = startOnBlackToMove(
+          USER_ANNOTATED,
+          stubSound(),
+          memoryStore({ [AIDS]: 'off' }),
+        );
+        playC6(board);
+        vi.advanceTimersByTime(600);
+        expect(document.querySelectorAll('#moves .move')).toHaveLength(3);
+      });
+
+      describe('hint button', () => {
+        it('only highlights the piece to move, whatever the aids', () => {
+          startOnBlackToMove(OPPONENT_ANNOTATED, stubSound(), memoryStore({ [AIDS]: 'off' }));
+          $<HTMLButtonElement>('#hint').click();
+          expect(shapesOnBoard()).toBe(1);
+          expect(hintMarks()).toBe(1);
+          expect($('#message').textContent).toBe('Indice : la pièce à jouer est en surbrillance.');
+        });
+
+        it('is added to the author annotations when the aids are on', () => {
+          startOnBlackToMove(OPPONENT_ANNOTATED);
+          $<HTMLButtonElement>('#hint').click();
+          expect(shapesOnBoard()).toBe(3);
+          expect(hintMarks()).toBe(1);
+        });
+
+        it('does not disappear when the aids are toggled', () => {
+          startOnBlackToMove(OPPONENT_ANNOTATED);
+          $<HTMLButtonElement>('#hint').click();
+          $<HTMLButtonElement>('#aids-toggle').click();
+          expect(shapesOnBoard()).toBe(1);
+          expect(hintMarks()).toBe(1);
+        });
+      });
+
+      it('keeps the solution button working when the aids are off', () => {
+        startOnBlackToMove(OPPONENT_ANNOTATED, stubSound(), memoryStore({ [AIDS]: 'off' }));
+        $<HTMLButtonElement>('#solution').click();
+        expect(document.querySelectorAll('#board .arrow')).toHaveLength(1);
+      });
+    });
   });
 
   describe('sound toggle', () => {
@@ -294,6 +389,36 @@ describe('App', () => {
       document.dispatchEvent(new Event('pointerdown'));
       document.dispatchEvent(new Event('pointerdown'));
       expect(sound.unlock).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('aids toggle', () => {
+    const toggle = () => $<HTMLButtonElement>('#aids-toggle');
+
+    it('is on by default', () => {
+      app = new App($('#app'), { settings: memoryStore() });
+      app.start();
+      expect(toggle().getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('switches and remembers the choice', () => {
+      const settings = memoryStore();
+      app = new App($('#app'), { settings });
+      app.start();
+
+      toggle().click();
+      expect(toggle().getAttribute('aria-pressed')).toBe('false');
+      expect(settings.read('aids')).toBe('off');
+
+      toggle().click();
+      expect(toggle().getAttribute('aria-pressed')).toBe('true');
+      expect(settings.read('aids')).toBe('on');
+    });
+
+    it('is restored from the stored settings', () => {
+      app = new App($('#app'), { settings: memoryStore({ 'lichess-study-trainer:aids': 'off' }) });
+      app.start();
+      expect(toggle().getAttribute('aria-pressed')).toBe('false');
     });
   });
 });

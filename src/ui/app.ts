@@ -1,9 +1,10 @@
 import { parsePgn } from '../domain/pgn';
-import { hasShapes } from '../domain/shapes';
+import { hasShapes, mergeShapes } from '../domain/shapes';
 import { chaptersOfStudy, isTrainable, studyNames } from '../domain/study';
 import { startSession } from '../domain/training';
 import type { Rng, StartMode, TrainingSession } from '../domain/training';
-import type { Chapter, Square } from '../domain/types';
+import { NO_SHAPES } from '../domain/types';
+import type { Chapter, Shapes, Square } from '../domain/types';
 import type { FetchLike } from '../services/lichess';
 import { SoundPlayer } from '../services/sound';
 import type { SoundOutput } from '../services/sound';
@@ -53,8 +54,11 @@ export class App {
     chapterName: HTMLElement;
     announcer: HTMLElement;
     soundToggle: HTMLButtonElement;
+    aidsToggle: HTMLButtonElement;
     showMoves: HTMLInputElement;
   };
+  /** Whether the author's arrows and circles are shown. */
+  private aids: boolean;
 
   private chapters: Chapter[] = [];
   private session: TrainingSession | null = null;
@@ -73,8 +77,11 @@ export class App {
       chapterName: requireElement(root, '#chapter-name'),
       announcer: requireElement(root, '#announcer'),
       soundToggle: requireElement(root, '#sound-toggle'),
+      aidsToggle: requireElement(root, '#aids-toggle'),
       showMoves: requireElement(root, '#show-moves'),
     };
+
+    this.aids = options.settings.read('aids') !== 'off';
 
     this.sound =
       options.sound ?? new SoundPlayer({ enabled: options.settings.read('sound') !== 'off' });
@@ -128,6 +135,8 @@ export class App {
     document.addEventListener('keydown', this.unlockAudio);
     this.els.soundToggle.addEventListener('click', () => this.toggleSound());
     this.syncSoundToggle();
+    this.els.aidsToggle.addEventListener('click', () => this.toggleAids());
+    this.syncAidsToggle();
 
     this.importPanel.setUsername(this.options.settings.read('username') ?? '');
     const saved = this.options.settings.read('pgn');
@@ -258,7 +267,8 @@ export class App {
     if (!session.awaitingOpponent) return;
 
     const { opponentDelayMs = 600, annotatedDelayMs = 1800 } = this.options;
-    const delay = hasShapes(session.shapes) ? annotatedDelayMs : opponentDelayMs;
+    const annotated = this.aids && hasShapes(session.authorShapes);
+    const delay = annotated ? annotatedDelayMs : opponentDelayMs;
     this.opponentTimer = setTimeout(() => {
       if (this.session !== session) return;
       if (session.playOpponent()) this.sound.play(session.lastCapture ? 'capture' : 'move');
@@ -277,6 +287,23 @@ export class App {
 
   private syncSoundToggle(): void {
     this.els.soundToggle.setAttribute('aria-pressed', String(this.sound.enabled));
+  }
+
+  private toggleAids(): void {
+    this.aids = !this.aids;
+    this.options.settings.write('aids', this.aids ? 'on' : 'off');
+    this.syncAidsToggle();
+    this.render();
+  }
+
+  private syncAidsToggle(): void {
+    this.els.aidsToggle.setAttribute('aria-pressed', String(this.aids));
+  }
+
+  /** The author's arrows and circles (when the aids are on) plus what the user asked for. */
+  private visibleShapes(session: TrainingSession): Shapes {
+    const authored = this.aids ? session.authorShapes : NO_SHAPES;
+    return mergeShapes(authored, session.requestedShapes);
   }
 
   private readonly unlockAudio = (): void => {
@@ -319,7 +346,7 @@ export class App {
       orientation: session.orientation,
       pieces,
       lastMove,
-      shapes: session.shapes,
+      shapes: this.visibleShapes(session),
       interactive: session.awaitingUser,
     });
     this.moveList.render(session.history, session.ply, this.els.showMoves.checked);

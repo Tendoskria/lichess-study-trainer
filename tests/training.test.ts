@@ -13,6 +13,11 @@ const BLACK = `[Event "S: b"]
 
 1. e4 c6 2. d4 d5 *`;
 
+const BLACK_ANNOTATED = `[Event "S: a"]
+[Orientation "black"]
+
+1. e4 { [%csl Rd5][%cal Ge2e4] } c6 2. d4 d5 *`;
+
 function sessionFor(pgn: string, mode: 'random' | 'beginning' = 'beginning'): TrainingSession {
   const session = startSession(parsePgn(pgn), mode, () => 0);
   if (!session) throw new Error('no session');
@@ -49,7 +54,7 @@ describe('TrainingSession (white)', () => {
 
     const bishop = s.attempt('f1', 'c4');
     expect(bishop.status).toBe('correct');
-    expect(s.shapes.arrows).toEqual([{ from: 'c4', to: 'f7', color: 'G' }]);
+    expect(s.authorShapes.arrows).toEqual([{ from: 'c4', to: 'f7', color: 'G' }]);
   });
 
   it('finishes the line and refuses further play', () => {
@@ -67,9 +72,10 @@ describe('TrainingSession (white)', () => {
   it('offers a hint and reveals the expected moves', () => {
     const s = sessionFor(WHITE);
     s.hint();
-    expect(s.shapes.marks).toEqual([{ square: 'e2', color: 'Y' }]);
+    expect(s.requestedShapes.marks).toEqual([{ square: 'e2', color: 'Y' }]);
+    expect(s.requestedShapes.arrows).toEqual([]);
     expect(s.reveal()).toEqual(['e4']);
-    expect(s.shapes.arrows).toEqual([{ from: 'e2', to: 'e4', color: 'G' }]);
+    expect(s.requestedShapes.arrows).toEqual([{ from: 'e2', to: 'e4', color: 'G' }]);
   });
 });
 
@@ -91,6 +97,51 @@ describe('TrainingSession (black)', () => {
   });
 });
 
+describe('author annotations', () => {
+  it('shows the annotations of the opponent move when it is the user turn', () => {
+    const s = sessionFor(BLACK_ANNOTATED);
+    expect(s.authorShapes.arrows).toEqual([]);
+    s.playOpponent();
+    expect(s.awaitingUser).toBe(true);
+    expect(s.authorShapes.arrows).toEqual([{ from: 'e2', to: 'e4', color: 'G' }]);
+    expect(s.authorShapes.marks).toEqual([{ square: 'd5', color: 'R' }]);
+  });
+
+  it('shows them from the start when the exercise begins on an annotated position', () => {
+    const s = sessionFor(BLACK_ANNOTATED, 'random');
+    expect(s.awaitingUser).toBe(true);
+    expect(s.authorShapes.arrows).toHaveLength(1);
+  });
+
+  it('keeps them on the board after a wrong answer', () => {
+    const s = sessionFor(BLACK_ANNOTATED, 'random');
+    expect(s.attempt('a7', 'a6').status).toBe('wrong');
+    expect(s.authorShapes.arrows).toHaveLength(1);
+  });
+});
+
+describe('hint', () => {
+  it('only highlights the piece to move, never the author annotations or the destination', () => {
+    const s = sessionFor(BLACK_ANNOTATED, 'random');
+    s.hint();
+    expect(s.requestedShapes).toEqual({ arrows: [], marks: [{ square: 'c7', color: 'Y' }] });
+    expect(s.authorShapes.arrows).toHaveLength(1); // untouched: the lightbulb owns these
+  });
+
+  it('highlights each origin square once when several moves are expected', () => {
+    const s = sessionFor('[Event "S: m"]\n[Orientation "white"]\n\n1. e4 (1. e3) 1... e5 *');
+    s.hint();
+    expect(s.requestedShapes.marks).toEqual([{ square: 'e2', color: 'Y' }]);
+  });
+
+  it('is cleared once the user answers', () => {
+    const s = sessionFor(BLACK_ANNOTATED, 'random');
+    s.hint();
+    s.attempt('c7', 'c6');
+    expect(s.requestedShapes.marks).toEqual([]);
+  });
+});
+
 describe('history browsing', () => {
   it('shows earlier positions without touching the live game', () => {
     const s = sessionFor(WHITE);
@@ -103,7 +154,8 @@ describe('history browsing', () => {
     expect(s.position().pieces).toHaveLength(32);
     expect(s.position().pieces.some((p) => p.square === 'e5')).toBe(false);
     expect(s.attempt('g1', 'f3')).toEqual({ status: 'ignored' });
-    expect(s.shapes.arrows).toEqual([]);
+    expect(s.authorShapes.arrows).toEqual([]);
+    expect(s.requestedShapes.marks).toEqual([]);
 
     s.goTo(0);
     expect(s.position().lastMove).toBeNull();
