@@ -503,4 +503,108 @@ describe('App', () => {
       expect(toggle().getAttribute('aria-pressed')).toBe('false');
     });
   });
+
+  describe('refreshing studies loaded from a username', () => {
+    const chapter = (study: string, name: string): string =>
+      `[Event "${study}: ${name}"]\n[StudyName "${study}"]\n[ChapterName "${name}"]\n\n1. e4 e5 *`;
+    const OLD = chapter('Old', 'o1');
+    const key = (name: string): string => `lichess-study-trainer:${name}`;
+    const reply = (body: string) =>
+      vi.fn((url: string) => Promise.resolve(new Response(body, { headers: { 'x-url': url } })));
+
+    it('remembers where the studies came from', () => {
+      const settings = memoryStore();
+      app = new App($('#app'), { settings });
+      app.start();
+      app.importPgn(caroKann, { username: 'Tendoskria' });
+      expect(settings.read('source')).toBe('username');
+      app.importPgn(caroKann, {});
+      expect(settings.read('source')).toBe('other');
+    });
+
+    it('downloads the studies again and stores the fresh copy', async () => {
+      const fetch = reply(caroKann);
+      const settings = memoryStore({
+        [key('pgn')]: OLD,
+        [key('username')]: 'Tendoskria',
+        [key('source')]: 'username',
+      });
+      app = new App($('#app'), { settings, fetch });
+      app.start();
+      // The saved copy is usable straight away.
+      expect(visibleViews()).toEqual(['view-trainer']);
+
+      await vi.waitFor(() => expect(settings.read('pgn')).toBe(caroKann));
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(fetch.mock.calls[0]?.[0]).toContain('/by/Tendoskria/export.pgn');
+      expect(chapterBoxes().length).toBeGreaterThan(0);
+    });
+
+    it('shows the study as soon as it arrives when nothing was saved', async () => {
+      const settings = memoryStore({
+        [key('username')]: 'Tendoskria',
+        [key('source')]: 'username',
+      });
+      app = new App($('#app'), { settings, fetch: reply(caroKann) });
+      app.start();
+      expect(visibleViews()).toEqual(['view-welcome']);
+
+      await vi.waitFor(() => expect(visibleViews()).toEqual(['view-trainer']));
+      expect(settings.read('pgn')).toBe(caroKann);
+    });
+
+    it('keeps the saved studies when Lichess cannot be reached', async () => {
+      const fetch = vi.fn(async () => Promise.reject(new TypeError('offline')));
+      const settings = memoryStore({
+        [key('pgn')]: OLD,
+        [key('username')]: 'Tendoskria',
+        [key('source')]: 'username',
+      });
+      app = new App($('#app'), { settings, fetch });
+      app.start();
+
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+      await Promise.resolve();
+      expect(settings.read('pgn')).toBe(OLD);
+      expect(visibleViews()).toEqual(['view-trainer']);
+    });
+
+    it('also refreshes studies saved before the source was recorded', async () => {
+      const fetch = reply(caroKann);
+      const settings = memoryStore({ [key('pgn')]: OLD, [key('username')]: 'Tendoskria' });
+      app = new App($('#app'), { settings, fetch });
+      app.start();
+      await vi.waitFor(() => expect(settings.read('pgn')).toBe(caroKann));
+    });
+
+    it('does not download anything for a pasted PGN or a study link', () => {
+      const fetch = reply(caroKann);
+      const settings = memoryStore({
+        [key('pgn')]: OLD,
+        [key('username')]: 'Tendoskria',
+        [key('source')]: 'other',
+      });
+      app = new App($('#app'), { settings, fetch });
+      app.start();
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('lets a manual import made in the meantime win', async () => {
+      let release: (response: Response) => void = () => {};
+      const fetch = vi.fn(() => new Promise<Response>((resolve) => (release = resolve)));
+      const settings = memoryStore({
+        [key('pgn')]: OLD,
+        [key('username')]: 'Tendoskria',
+        [key('source')]: 'username',
+      });
+      app = new App($('#app'), { settings, fetch });
+      app.start();
+
+      const pasted = chapter('Pasted', 'p1');
+      app.importPgn(pasted, {});
+      release(new Response(caroKann));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(settings.read('pgn')).toBe(pasted);
+    });
+  });
 });

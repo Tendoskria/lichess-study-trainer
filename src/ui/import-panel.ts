@@ -109,7 +109,7 @@ export class ImportPanel {
     if (file) this.pgnText.value = await file.text();
   }
 
-  private setStatus(text: string, kind: StatusKind): void {
+  setStatus(text: string, kind: StatusKind): void {
     this.status.textContent = text;
     this.status.className = `message ${kind}`;
   }
