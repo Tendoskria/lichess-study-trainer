@@ -1,6 +1,6 @@
 import { parsePgn } from '../domain/pgn';
 import { hasShapes, mergeShapes } from '../domain/shapes';
-import { chaptersOfStudy, isTrainable, studyNames } from '../domain/study';
+import { chapterSections, isTrainable, selectChapters, studyNames } from '../domain/study';
 import { startSession } from '../domain/training';
 import type { Rng, StartMode, TrainingSession } from '../domain/training';
 import { NO_SHAPES } from '../domain/types';
@@ -13,11 +13,10 @@ import { BoardView } from './board';
 import { requireElement } from './dom';
 import { ImportPanel } from './import-panel';
 import { messages } from './messages';
+import { MultiSelect } from './multi-select';
 import { MoveList } from './move-list';
 import { VictoryOverlay } from './victory';
 import { Router } from './router';
-
-const ALL = '__all__';
 
 export interface AppOptions {
   readonly settings: SettingsStore;
@@ -31,11 +30,6 @@ export interface AppOptions {
   readonly annotatedDelayMs?: number;
 }
 
-interface Option {
-  readonly value: string;
-  readonly label: string;
-}
-
 type StatusKind = 'info' | 'ok' | 'error';
 
 /** Wires the DOM, the board, the pages and the training session together. */
@@ -46,9 +40,9 @@ export class App {
   private readonly router: Router;
   private readonly victory: VictoryOverlay;
   private readonly sound: SoundOutput;
+  private readonly studyFilter: MultiSelect;
+  private readonly chapterFilter: MultiSelect;
   private readonly els: {
-    study: HTMLSelectElement;
-    chapter: HTMLSelectElement;
     mode: HTMLSelectElement;
     message: HTMLElement;
     chapterName: HTMLElement;
@@ -70,8 +64,6 @@ export class App {
     private readonly options: AppOptions,
   ) {
     this.els = {
-      study: requireElement(root, '#study'),
-      chapter: requireElement(root, '#chapter'),
       mode: requireElement(root, '#mode'),
       message: requireElement(root, '#message'),
       chapterName: requireElement(root, '#chapter-name'),
@@ -80,6 +72,26 @@ export class App {
       aidsToggle: requireElement(root, '#aids-toggle'),
       showMoves: requireElement(root, '#show-moves'),
     };
+
+    this.studyFilter = new MultiSelect(requireElement<HTMLElement>(root, '#study'), {
+      label: messages.studyLabel,
+      summary: (picked, total) =>
+        this.summarize(picked, total, messages.allStudies, messages.studiesSelected),
+      clearLabel: messages.clearSelection,
+      doneLabel: messages.closeSelection,
+      onCommit: () => {
+        this.fillChapterOptions();
+        this.newPosition();
+      },
+    });
+    this.chapterFilter = new MultiSelect(requireElement<HTMLElement>(root, '#chapter'), {
+      label: messages.chapterLabel,
+      summary: (picked, total) =>
+        this.summarize(picked, total, messages.allChapters, messages.chaptersSelected),
+      clearLabel: messages.clearSelection,
+      doneLabel: messages.closeSelection,
+      onCommit: () => this.newPosition(),
+    });
 
     this.aids = options.settings.read('aids') !== 'off';
 
@@ -118,17 +130,10 @@ export class App {
     requireElement(this.root, '#hint').addEventListener('click', () => this.showHint());
     requireElement(this.root, '#solution').addEventListener('click', () => this.showSolution());
     this.els.showMoves.addEventListener('change', () => this.render());
-    this.els.study.addEventListener('change', () => {
-      this.els.study.blur();
-      this.fillChapterOptions();
+    this.els.mode.addEventListener('change', () => {
+      this.els.mode.blur();
       this.newPosition();
     });
-    for (const select of [this.els.chapter, this.els.mode]) {
-      select.addEventListener('change', () => {
-        select.blur();
-        this.newPosition();
-      });
-    }
     document.addEventListener('keydown', this.onKeyDown);
     // Browsers only allow audio after a user gesture.
     document.addEventListener('pointerdown', this.unlockAudio);
@@ -147,6 +152,8 @@ export class App {
   dispose(): void {
     this.cancelOpponent();
     this.router.stop();
+    this.studyFilter.destroy();
+    this.chapterFilter.destroy();
     document.removeEventListener('keydown', this.onKeyDown);
     document.removeEventListener('pointerdown', this.unlockAudio);
     document.removeEventListener('keydown', this.unlockAudio);
@@ -191,47 +198,49 @@ export class App {
     this.chapters = chapters;
 
     const names = studyNames(chapters);
-    this.fillSelect(this.els.study, [
-      { value: ALL, label: messages.allStudies(names.length) },
-      ...names.map((name) => ({ value: name, label: name || messages.untitledStudy })),
+    this.studyFilter.clear();
+    this.studyFilter.setGroups([
+      {
+        label: null,
+        options: names.map((name) => ({ value: name, label: name || messages.untitledStudy })),
+      },
     ]);
-    this.els.study.hidden = names.length < 2;
+    this.studyFilter.hidden = names.length < 2;
+    this.chapterFilter.clear();
     this.fillChapterOptions();
     return true;
   }
 
+  /**
+   * Lists the chapters of the selected studies (all studies when none is selected), one titled
+   * section per study as soon as several studies are shown.
+   */
   private fillChapterOptions(): void {
-    const visible = this.visibleChapters();
-    this.fillSelect(this.els.chapter, [
-      { value: ALL, label: messages.allChapters(visible.length) },
-      ...visible.map((chapter, index) => ({
-        value: String(index),
-        label: chapter.name || messages.untitledChapter,
+    const sections = chapterSections(this.chapters, this.studyFilter.selected);
+    this.chapterFilter.setGroups(
+      sections.map((section) => ({
+        label: sections.length > 1 ? section.study || messages.untitledStudy : null,
+        options: section.entries.map(({ index, chapter }) => ({
+          value: String(index),
+          label: chapter.name || messages.untitledChapter,
+        })),
       })),
-    ]);
-  }
-
-  private fillSelect(select: HTMLSelectElement, options: readonly Option[]): void {
-    select.replaceChildren(
-      ...options.map(({ value, label }) => {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = label;
-        return option;
-      }),
     );
   }
 
-  private visibleChapters(): Chapter[] {
-    const study = this.els.study.value;
-    return chaptersOfStudy(this.chapters, study === ALL || study === '' ? null : study);
+  private summarize(
+    picked: readonly string[],
+    total: number,
+    all: (count: number) => string,
+    several: (count: number) => string,
+  ): string {
+    if (picked.length === 0) return all(total);
+    return picked.length === 1 ? (picked[0] ?? '') : several(picked.length);
   }
 
   private selectedChapters(): Chapter[] {
-    const visible = this.visibleChapters();
-    const value = this.els.chapter.value;
-    const chosen = value === ALL ? undefined : visible[Number(value)];
-    return chosen ? [chosen] : visible;
+    const picked = new Set([...this.chapterFilter.selected].map(Number));
+    return selectChapters(this.chapters, this.studyFilter.selected, picked);
   }
 
   private attempt(from: Square, to: Square): void {
@@ -378,6 +387,7 @@ export class App {
     return (
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement ||
+      (target instanceof Element && target.closest('.multiselect') !== null) ||
       (target instanceof HTMLInputElement && target.type === 'text')
     );
   }
