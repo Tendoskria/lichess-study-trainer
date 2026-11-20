@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SoundOutput } from '../../src/services/sound';
 import { SettingsStore } from '../../src/services/storage';
 import { App } from '../../src/ui/app';
 
@@ -15,6 +16,19 @@ function memoryStore(initial: Record<string, string> = {}): SettingsStore {
     getItem: (key) => data.get(key) ?? null,
     setItem: (key, value) => void data.set(key, value),
   });
+}
+
+/** Records the sounds requested by the app instead of playing them. */
+function stubSound(enabled = true) {
+  const sound = {
+    enabled,
+    setEnabled: vi.fn((value: boolean) => {
+      sound.enabled = value;
+    }),
+    unlock: vi.fn(),
+    play: vi.fn(),
+  };
+  return sound;
 }
 
 describe('App', () => {
@@ -113,9 +127,10 @@ describe('App', () => {
     /** Starts the first chapter from the beginning: the opponent plays 1. e4, black to answer. */
     const startOnBlackToMove = (
       pgn = caroKann,
+      sound: SoundOutput = stubSound(),
     ): { board: SVGSVGElement; messageBefore: string } => {
       vi.useFakeTimers();
-      app = new App($('#app'), { settings: memoryStore(), rng: () => 0 });
+      app = new App($('#app'), { settings: memoryStore(), rng: () => 0, sound });
       app.start();
       $<HTMLSelectElement>('#mode').value = 'beginning';
       app.importPgn(pgn, {});
@@ -203,6 +218,82 @@ describe('App', () => {
         expect(victory().hidden).toBe(true);
         expect($('#message').textContent).toContain('noirs');
       });
+    });
+
+    describe('sounds', () => {
+      const played = (sound: ReturnType<typeof stubSound>): string[] =>
+        sound.play.mock.calls.map(([name]) => name as string);
+
+      it('plays a move sound for the opponent and for the user, then the victory jingle', () => {
+        const sound = stubSound();
+        const { board } = startOnBlackToMove(
+          '[Event "S: t"]\n[Orientation "black"]\n\n1. e4 c6 *',
+          sound,
+        );
+        press(board, 'c7');
+        press(board, 'c6');
+        expect(played(sound)).toEqual(['move', 'move', 'victory']);
+      });
+
+      it('plays a capture sound when a piece is taken', () => {
+        const sound = stubSound();
+        const { board } = startOnBlackToMove(
+          '[Event "S: t"]\n[Orientation "black"]\n\n1. e4 d5 2. exd5 *',
+          sound,
+        );
+        press(board, 'd7');
+        press(board, 'd5');
+        vi.advanceTimersByTime(600);
+        expect(played(sound)).toEqual(['move', 'move', 'capture', 'victory']);
+      });
+
+      it('plays the error sound on a wrong move, and nothing else', () => {
+        const sound = stubSound();
+        const { board } = startOnBlackToMove(caroKann, sound);
+        sound.play.mockClear();
+        press(board, 'a7');
+        press(board, 'a6');
+        expect(played(sound)).toEqual(['error']);
+      });
+    });
+  });
+
+  describe('sound toggle', () => {
+    it('mutes and unmutes, and remembers the choice', () => {
+      const sound = stubSound();
+      const settings = memoryStore();
+      app = new App($('#app'), { settings, sound });
+      app.start();
+      const toggle = $<HTMLButtonElement>('#sound-toggle');
+      expect(toggle.getAttribute('aria-pressed')).toBe('true');
+
+      toggle.click();
+      expect(sound.setEnabled).toHaveBeenLastCalledWith(false);
+      expect(toggle.getAttribute('aria-pressed')).toBe('false');
+      expect(settings.read('sound')).toBe('off');
+
+      toggle.click();
+      expect(sound.setEnabled).toHaveBeenLastCalledWith(true);
+      expect(sound.unlock).toHaveBeenCalled();
+      expect(toggle.getAttribute('aria-pressed')).toBe('true');
+      expect(settings.read('sound')).toBe('on');
+    });
+
+    it('starts muted when the user muted the sound earlier', () => {
+      app = new App($('#app'), { settings: memoryStore({ 'lichess-study-trainer:sound': 'off' }) });
+      app.start();
+      expect($('#sound-toggle').getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('unlocks audio on the first user gesture only', () => {
+      const sound = stubSound();
+      app = new App($('#app'), { settings: memoryStore(), sound });
+      app.start();
+      expect(sound.unlock).not.toHaveBeenCalled();
+
+      document.dispatchEvent(new Event('pointerdown'));
+      document.dispatchEvent(new Event('pointerdown'));
+      expect(sound.unlock).toHaveBeenCalledOnce();
     });
   });
 });

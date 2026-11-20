@@ -73,6 +73,7 @@ export class TrainingSession {
   private current: MoveNode;
   private last: LastMove | null;
   private wrongAttempts = 0;
+  private captured = false;
   private viewedPly: number | null = null;
   private annotations: Shapes = NO_SHAPES;
 
@@ -101,6 +102,11 @@ export class TrainingSession {
   /** Ply displayed on the board (differs from the live ply while browsing the history). */
   get ply(): number {
     return this.viewedPly ?? this.played.length;
+  }
+
+  /** True when the last move played on the live board captured a piece. */
+  get lastCapture(): boolean {
+    return this.captured;
   }
 
   get isBrowsing(): boolean {
@@ -224,6 +230,7 @@ export class TrainingSession {
     this.current = node;
     this.played.push(move.san);
     this.last = { from: move.from, to: move.to };
+    this.captured = /[ce]/.test(move.flags);
   }
 }
 

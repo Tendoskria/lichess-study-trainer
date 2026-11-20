@@ -114,6 +114,21 @@ describe('history browsing', () => {
   });
 });
 
+describe('captures', () => {
+  it('reports whether the last live move was a capture', () => {
+    const s = sessionFor('[Event "S: c"]\n\n1. e4 d5 2. exd5 *');
+    expect(s.lastCapture).toBe(false);
+
+    s.attempt('e2', 'e4');
+    expect(s.lastCapture).toBe(false);
+    s.playOpponent();
+    expect(s.lastCapture).toBe(false);
+
+    s.attempt('e4', 'd5');
+    expect(s.lastCapture).toBe(true);
+  });
+});
+
 describe('startSession', () => {
   it('returns null when there is no chapter', () => {
     expect(startSession([], 'random')).toBeNull();
