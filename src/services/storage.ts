@@ -1,6 +1,10 @@
 const PREFIX = 'lichess-study-trainer:';
 
-export type SettingKey = 'pgn' | 'username' | 'sound' | 'aids';
+/**
+ * `source` records where the saved `pgn` came from: 'username' (all the studies of a Lichess
+ * user, re-downloaded on every visit) or 'other' (a study link, a pasted or uploaded PGN).
+ */
+export type SettingKey = 'pgn' | 'username' | 'source' | 'sound' | 'aids';
 
 export type StorageBackend = Pick<Storage, 'getItem' | 'setItem'>;
 

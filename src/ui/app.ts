@@ -5,6 +5,7 @@ import { startSession } from '../domain/training';
 import type { Rng, StartMode, TrainingSession } from '../domain/training';
 import { NO_SHAPES } from '../domain/types';
 import type { Chapter, Shapes, Square } from '../domain/types';
+import { fetchUserStudiesPgn } from '../services/lichess';
 import type { FetchLike } from '../services/lichess';
 import { SoundPlayer } from '../services/sound';
 import type { SoundOutput } from '../services/sound';
@@ -58,6 +59,7 @@ export class App {
   private session: TrainingSession | null = null;
   private chapterRevealed = false;
   private opponentTimer: ReturnType<typeof setTimeout> | undefined;
+  private refresh: AbortController | undefined;
 
   constructor(
     private readonly root: HTMLElement,
@@ -147,9 +149,18 @@ export class App {
     const saved = this.options.settings.read('pgn');
     if (saved && this.loadChapters(saved)) this.newPosition();
     this.router.start();
+
+    // Studies loaded from a Lichess username may have changed since last time: fetch them again.
+    // Copies saved before the source was recorded (no `source` yet) are assumed to come from it.
+    const username = this.options.settings.read('username');
+    const source = this.options.settings.read('source');
+    if (username && (source === 'username' || source === null)) {
+      void this.refreshFromLichess(username, saved);
+    }
   }
 
   dispose(): void {
+    this.refresh?.abort();
     this.cancelOpponent();
     this.router.stop();
     this.studyFilter.destroy();
@@ -165,9 +176,50 @@ export class App {
     if (!this.loadChapters(text)) return false;
     this.options.settings.write('pgn', text);
     if (source.username) this.options.settings.write('username', source.username);
+    this.options.settings.write('source', source.username ? 'username' : 'other');
     this.newPosition();
     this.router.navigate('trainer');
     return true;
+  }
+
+  /**
+   * Re-downloads the public studies of `username` in the background. The saved copy (if any) is
+   * already on screen, so a failure is silent; the running exercise is never interrupted, the
+   * fresh chapters are simply used from the next position on.
+   */
+  private async refreshFromLichess(username: string, saved: string | null): Promise<void> {
+    const controller = new AbortController();
+    this.refresh?.abort();
+    this.refresh = controller;
+
+    const hadStudies = this.chapters.length > 0;
+    if (!hadStudies) this.importPanel.setStatus(messages.loading, 'info');
+
+    let pgn: string;
+    try {
+      pgn = await fetchUserStudiesPgn(username, {
+        signal: controller.signal,
+        cache: 'no-cache',
+        ...(this.options.fetch ? { fetch: this.options.fetch } : {}),
+      });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (!hadStudies) this.importPanel.setStatus(messages.lichessError(error), 'error');
+      return;
+    }
+
+    // Something else was loaded while we were waiting: that choice wins.
+    if (controller.signal.aborted || this.options.settings.read('pgn') !== saved) return;
+    if (!hadStudies) this.importPanel.setStatus('', 'info');
+    if (pgn === saved) return;
+    if (!this.loadChapters(pgn)) {
+      if (!hadStudies) this.importPanel.setStatus(messages.noChapters, 'error');
+      return;
+    }
+
+    this.options.settings.write('pgn', pgn);
+    if (!this.session) this.newPosition();
+    this.router.render();
   }
 
   newPosition(): void {

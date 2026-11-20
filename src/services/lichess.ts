@@ -7,6 +7,8 @@ export interface RequestOptions {
   /** Injectable for tests; defaults to the global `fetch`. */
   readonly fetch?: FetchLike;
   readonly signal?: AbortSignal;
+  /** HTTP cache policy; 'no-cache' makes the browser revalidate instead of reusing a stale copy. */
+  readonly cache?: RequestCache;
 }
 
 export type LichessErrorKind = 'not-found' | 'http' | 'network';
@@ -32,7 +34,11 @@ async function getText(url: string, options: RequestOptions): Promise<string> {
 
   let response: Response;
   try {
-    response = await fetchFn(url, options.signal ? { signal: options.signal } : undefined);
+    const init: RequestInit = {
+      ...(options.signal ? { signal: options.signal } : {}),
+      ...(options.cache ? { cache: options.cache } : {}),
+    };
+    response = await fetchFn(url, Object.keys(init).length > 0 ? init : undefined);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
     throw new LichessError('network', 'Unable to reach Lichess');
