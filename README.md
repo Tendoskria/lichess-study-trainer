@@ -20,6 +20,9 @@ l’application affiche une position tirée de ton étude et tu dois retrouver l
   en surbrillance) ; réduit automatiquement si le système demande moins d’animations.
 - Une ligne terminée déclenche une bannière de victoire qui apparaît en fondu, avec confettis et
   étincelles (réduits à un simple fondu si le système demande moins d’animations).
+- Sons pour les coups (pion déplacé, capture), les erreurs et la victoire, avec un bouton pour
+  les couper (choix mémorisé). Tous les sons sont synthétisés avec Web Audio (aucun fichier audio) :
+  les coups reposent sur un modèle de résonances de bois.
 - Indice (annotations de l’auteur ou case de départ) et « Voir le coup ».
 - Les flèches et cases colorées de ton étude (`[%cal]`, `[%csl]`) s’affichent après une bonne réponse.
 - Échiquier SVG : clic ou glisser-déposer, coups légaux et captures signalés comme sur Lichess.
@@ -62,6 +65,8 @@ src/
 │  └─ training.ts     TrainingSession : machine d’état de l’exercice
 ├─ services/
 │  ├─ lichess.ts      Client de l’API Lichess (fetch injectable)
+│  ├─ sound.ts        Lecteur de sons (contexte audio paresseux, silence en cas d’échec)
+│  ├─ synth.ts        Sons synthétisés Web Audio (coup, capture, erreur, victoire)
 │  └─ storage.ts      Persistance locale tolérante aux pannes
 ├─ ui/
 │  ├─ app.ts          Contrôleur : relie pages, échiquier et session
@@ -113,6 +118,7 @@ directement depuis le navigateur.
 Code sous licence **GPL-3.0-or-later** (voir `LICENSE`), choisie notamment parce que le jeu de
 pièces est sous GPL-2.0-or-later.
 
+- Sons : synthèse originale avec l’API Web Audio (`src/services/synth.ts`), sans fichier ni licence tierce.
 - Pièces « cburnett » © Colin M.L. Burnett, GPL-2.0-or-later, via le dépôt Lichess
   (voir `src/assets/pieces/README.md`).
 - chess.js — BSD-2-Clause.

@@ -5,6 +5,8 @@ import { startSession } from '../domain/training';
 import type { Rng, StartMode, TrainingSession } from '../domain/training';
 import type { Chapter, Square } from '../domain/types';
 import type { FetchLike } from '../services/lichess';
+import { SoundPlayer } from '../services/sound';
+import type { SoundOutput } from '../services/sound';
 import type { SettingsStore } from '../services/storage';
 import { BoardView } from './board';
 import { requireElement } from './dom';
@@ -20,6 +22,8 @@ export interface AppOptions {
   readonly settings: SettingsStore;
   readonly fetch?: FetchLike;
   readonly rng?: Rng;
+  /** Defaults to synthesised sounds, enabled unless the user muted them. */
+  readonly sound?: SoundOutput;
   /** Pause before the opponent answers, in ms. */
   readonly opponentDelayMs?: number;
   /** Longer pause used when the user's last move carries author annotations to read. */
@@ -40,6 +44,7 @@ export class App {
   private readonly importPanel: ImportPanel;
   private readonly router: Router;
   private readonly victory: VictoryOverlay;
+  private readonly sound: SoundOutput;
   private readonly els: {
     study: HTMLSelectElement;
     chapter: HTMLSelectElement;
@@ -47,6 +52,7 @@ export class App {
     message: HTMLElement;
     chapterName: HTMLElement;
     announcer: HTMLElement;
+    soundToggle: HTMLButtonElement;
     showMoves: HTMLInputElement;
   };
 
@@ -66,8 +72,12 @@ export class App {
       message: requireElement(root, '#message'),
       chapterName: requireElement(root, '#chapter-name'),
       announcer: requireElement(root, '#announcer'),
+      soundToggle: requireElement(root, '#sound-toggle'),
       showMoves: requireElement(root, '#show-moves'),
     };
+
+    this.sound =
+      options.sound ?? new SoundPlayer({ enabled: options.settings.read('sound') !== 'off' });
 
     this.board = new BoardView(requireElement<SVGSVGElement>(root, '#board'), {
       canSelect: (square) => this.session?.ownsPiece(square) ?? false,
@@ -113,6 +123,11 @@ export class App {
       });
     }
     document.addEventListener('keydown', this.onKeyDown);
+    // Browsers only allow audio after a user gesture.
+    document.addEventListener('pointerdown', this.unlockAudio);
+    document.addEventListener('keydown', this.unlockAudio);
+    this.els.soundToggle.addEventListener('click', () => this.toggleSound());
+    this.syncSoundToggle();
 
     this.importPanel.setUsername(this.options.settings.read('username') ?? '');
     const saved = this.options.settings.read('pgn');
@@ -124,6 +139,8 @@ export class App {
     this.cancelOpponent();
     this.router.stop();
     document.removeEventListener('keydown', this.onKeyDown);
+    document.removeEventListener('pointerdown', this.unlockAudio);
+    document.removeEventListener('keydown', this.unlockAudio);
     this.board.destroy();
   }
 
@@ -216,11 +233,13 @@ export class App {
     if (result.status === 'correct') {
       this.chapterRevealed = true;
       this.els.announcer.textContent = '';
+      this.sound.play(session.lastCapture ? 'capture' : 'move');
       this.setStatus(messages.correct(result.san), 'ok');
     }
     this.render();
     if (result.status === 'wrong') {
       this.board.flashError(to);
+      this.sound.play('error');
       this.els.announcer.textContent = messages.wrongAnnouncement(result.tries);
     }
     if (result.status === 'correct') this.continueLine();
@@ -233,6 +252,7 @@ export class App {
     if (session.isFinished) {
       this.els.announcer.textContent = messages.lineCompleteAnnouncement;
       this.victory.show();
+      this.sound.play('victory');
       return;
     }
     if (!session.awaitingOpponent) return;
@@ -241,11 +261,29 @@ export class App {
     const delay = hasShapes(session.shapes) ? annotatedDelayMs : opponentDelayMs;
     this.opponentTimer = setTimeout(() => {
       if (this.session !== session) return;
-      session.playOpponent();
+      if (session.playOpponent()) this.sound.play(session.lastCapture ? 'capture' : 'move');
       this.render();
       this.continueLine();
     }, delay);
   }
+
+  private toggleSound(): void {
+    const enabled = !this.sound.enabled;
+    this.sound.setEnabled(enabled);
+    if (enabled) this.sound.unlock();
+    this.options.settings.write('sound', enabled ? 'on' : 'off');
+    this.syncSoundToggle();
+  }
+
+  private syncSoundToggle(): void {
+    this.els.soundToggle.setAttribute('aria-pressed', String(this.sound.enabled));
+  }
+
+  private readonly unlockAudio = (): void => {
+    this.sound.unlock();
+    document.removeEventListener('pointerdown', this.unlockAudio);
+    document.removeEventListener('keydown', this.unlockAudio);
+  };
 
   private cancelOpponent(): void {
     clearTimeout(this.opponentTimer);
