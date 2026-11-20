@@ -19,7 +19,13 @@ function setup() {
     onCommit,
   });
   select.setGroups([
-    { label: 'A', options: [{ value: '0', label: 'a1' }, { value: '1', label: 'a2' }] },
+    {
+      label: 'A',
+      options: [
+        { value: '0', label: 'a1' },
+        { value: '1', label: 'a2' },
+      ],
+    },
     { label: 'B', options: [{ value: '2', label: 'b1' }] },
   ]);
   const boxes = (): HTMLInputElement[] => [...root.querySelectorAll('input')];
