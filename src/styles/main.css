@@ -690,3 +690,25 @@ button:hover,
 .icon-button[aria-pressed='false'] {
   color: var(--muted);
 }
+
+/* ---------- Aids toggle (💡) ---------- */
+.aids-toggle {
+  position: relative;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.aids-toggle[aria-pressed='false'] .aids-icon {
+  filter: grayscale(1);
+  opacity: 0.4;
+}
+
+.aids-toggle[aria-pressed='false']::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 50%;
+  border-top: 2px solid var(--muted);
+  transform: rotate(-45deg);
+}

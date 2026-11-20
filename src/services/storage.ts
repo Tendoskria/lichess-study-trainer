@@ -1,6 +1,6 @@
 const PREFIX = 'lichess-study-trainer:';
 
-export type SettingKey = 'pgn' | 'username' | 'sound';
+export type SettingKey = 'pgn' | 'username' | 'sound' | 'aids';
 
 export type StorageBackend = Pick<Storage, 'getItem' | 'setItem'>;
 

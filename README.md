@@ -23,8 +23,8 @@ l’application affiche une position tirée de ton étude et tu dois retrouver l
 - Sons pour les coups (pion déplacé, capture), les erreurs et la victoire, avec un bouton pour
   les couper (choix mémorisé). Tous les sons sont synthétisés avec Web Audio (aucun fichier audio) :
   les coups reposent sur un modèle de résonances de bois.
-- Indice (annotations de l’auteur ou case de départ) et « Voir le coup ».
-- Les flèches et cases colorées de ton étude (`[%cal]`, `[%csl]`) s’affichent après une bonne réponse.
+- « Indice » met en surbrillance la pièce à jouer, et « Voir le coup » dessine le coup attendu.
+- Les flèches et cases colorées de ton étude (`[%cal]`, `[%csl]`) s’affichent sur la position en cours ; l’ampoule 💡 les affiche ou les masque (réglage mémorisé).
 - Échiquier SVG : clic ou glisser-déposer, coups légaux et captures signalés comme sur Lichess.
 - Navigation dans l’historique : `←` `→` `↑` `↓` / `Début` `Fin`, ou clic sur un coup.
 - Thème clair/sombre automatique, étude mémorisée dans le navigateur.

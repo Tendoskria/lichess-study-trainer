@@ -1,7 +1,7 @@
 import { Chess } from 'chess.js';
 import type { Move } from 'chess.js';
 import { normalizeSan } from './pgn';
-import { hasShapes, parseShapes } from './shapes';
+import { parseShapes } from './shapes';
 import { isUserTurn, pathTo, trainableNodes } from './study';
 import { NO_SHAPES } from './types';
 import type {
@@ -75,7 +75,10 @@ export class TrainingSession {
   private wrongAttempts = 0;
   private captured = false;
   private viewedPly: number | null = null;
-  private annotations: Shapes = NO_SHAPES;
+  /** The study author's arrows and circles for the position on the board. */
+  private authored: Shapes;
+  /** What the user asked for with "hint" or "show the move". */
+  private requested: Shapes = NO_SHAPES;
 
   constructor(
     readonly chapter: Chapter,
@@ -88,6 +91,7 @@ export class TrainingSession {
     this.played = played;
     this.last = last;
     this.current = startNode;
+    this.authored = parseShapes(startNode.comment);
   }
 
   get orientation(): Orientation {
@@ -130,9 +134,14 @@ export class TrainingSession {
     return this.wrongAttempts;
   }
 
-  /** Annotations to draw on the board (hidden while browsing the history). */
-  get shapes(): Shapes {
-    return this.isBrowsing ? NO_SHAPES : this.annotations;
+  /** The author's arrows and circles for the current position (hidden while browsing). */
+  get authorShapes(): Shapes {
+    return this.isBrowsing ? NO_SHAPES : this.authored;
+  }
+
+  /** Marks or arrows the user asked for with the hint or the solution (hidden while browsing). */
+  get requestedShapes(): Shapes {
+    return this.isBrowsing ? NO_SHAPES : this.requested;
   }
 
   position(): PositionSnapshot {
@@ -177,13 +186,15 @@ export class TrainingSession {
     if (!expected) {
       this.chess.undo();
       this.wrongAttempts += 1;
-      this.annotations = NO_SHAPES;
+      this.authored = parseShapes(this.current.comment);
+      this.requested = NO_SHAPES;
       return { status: 'wrong', tries: this.wrongAttempts };
     }
 
     this.commit(expected, move);
     this.wrongAttempts = 0;
-    this.annotations = parseShapes(expected.comment);
+    this.authored = parseShapes(expected.comment);
+    this.requested = NO_SHAPES;
     return { status: 'correct', san: move.san, finished: this.isFinished };
   }
 
@@ -194,22 +205,24 @@ export class TrainingSession {
     const next = children[Math.floor(this.rng() * children.length)];
     if (!next?.san) return false;
     this.commit(next, this.chess.move(next.san));
-    this.annotations = NO_SHAPES;
+    this.authored = parseShapes(next.comment);
+    this.requested = NO_SHAPES;
     return true;
   }
 
-  /** Shows the author's annotations for this position, or the origin square of the answer. */
+  /** Highlights the piece(s) to move, without telling where they go. */
   hint(): void {
-    const authored = parseShapes(this.current.comment);
-    this.annotations = hasShapes(authored)
-      ? authored
-      : { arrows: [], marks: this.expectedMoves().map((m) => ({ square: m.from, color: 'Y' })) };
+    const squares = new Set(this.expectedMoves().map((move) => move.from));
+    this.requested = {
+      arrows: [],
+      marks: [...squares].map((square) => ({ square, color: 'Y' })),
+    };
   }
 
   /** Draws the expected move(s) on the board and returns their SAN. */
   reveal(): string[] {
     const moves = this.expectedMoves();
-    this.annotations = {
+    this.requested = {
       arrows: moves.map((m) => ({ from: m.from, to: m.to, color: 'G' })),
       marks: [],
     };

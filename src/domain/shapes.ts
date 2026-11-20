@@ -42,3 +42,10 @@ export function parseShapes(comment: string): Shapes {
 export function hasShapes(shapes: Shapes): boolean {
   return shapes.arrows.length > 0 || shapes.marks.length > 0;
 }
+
+/** Draws `a` and `b` together. */
+export function mergeShapes(a: Shapes, b: Shapes): Shapes {
+  if (!hasShapes(b)) return a;
+  if (!hasShapes(a)) return b;
+  return { arrows: [...a.arrows, ...b.arrows], marks: [...a.marks, ...b.marks] };
+}

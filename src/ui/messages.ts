@@ -7,7 +7,7 @@ export const messages = {
   correct: (san: string): string => `✔ Correct : ${san}`,
   /** Read by screen readers only: sighted users get the visual "hit" effect instead. */
   wrongAnnouncement: (tries: number): string => `Mauvais coup (essai ${tries}).`,
-  hint: 'Indice : regarde les annotations ou la case de départ en surbrillance.',
+  hint: 'Indice : la pièce à jouer est en surbrillance.',
   solution: (sans: readonly string[]): string =>
     `Coup de l’étude : ${sans.join(' ou ')}. Joue-le pour continuer.`,
   /** Read by screen readers; sighted users get the victory banner. */
