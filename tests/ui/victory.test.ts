@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VictoryOverlay } from '../../src/ui/victory';
 
 const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
@@ -14,7 +14,12 @@ describe('VictoryOverlay', () => {
   };
 
   beforeEach(() => {
+    vi.useFakeTimers();
     document.body.innerHTML = /<body>([\s\S]*)<\/body>/.exec(html)?.[1] ?? '';
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('is hidden until shown, then reveals the banner with confetti and sparkles', () => {
@@ -58,6 +63,7 @@ describe('VictoryOverlay', () => {
   it('closes with "Voir la ligne" and clears the particles', () => {
     const overlay = new VictoryOverlay($('#victory'), { onNewPosition: vi.fn() });
     overlay.show();
+    vi.advanceTimersByTime(1000);
     $<HTMLButtonElement>('#victory-close').click();
 
     expect(overlay.visible).toBe(false);
@@ -67,7 +73,60 @@ describe('VictoryOverlay', () => {
   it('asks for a new position from the banner', () => {
     const onNewPosition = vi.fn();
     new VictoryOverlay($('#victory'), { onNewPosition }).show();
+    vi.advanceTimersByTime(1000);
     $<HTMLButtonElement>('#victory-new').click();
     expect(onNewPosition).toHaveBeenCalledOnce();
+  });
+
+  describe('button lock', () => {
+    it('ignores clicks on both buttons during the first second', () => {
+      const onNewPosition = vi.fn();
+      const overlay = new VictoryOverlay($('#victory'), { onNewPosition });
+      overlay.show();
+
+      vi.advanceTimersByTime(999);
+      expect($<HTMLButtonElement>('#victory-new').disabled).toBe(true);
+      expect($<HTMLButtonElement>('#victory-close').disabled).toBe(true);
+      $<HTMLButtonElement>('#victory-new').click();
+      $<HTMLButtonElement>('#victory-close').click();
+
+      expect(onNewPosition).not.toHaveBeenCalled();
+      expect(overlay.visible).toBe(true);
+    });
+
+    it('enables the buttons after one second', () => {
+      new VictoryOverlay($('#victory'), { onNewPosition: vi.fn() }).show();
+      vi.advanceTimersByTime(1000);
+      expect($<HTMLButtonElement>('#victory-new').disabled).toBe(false);
+      expect($<HTMLButtonElement>('#victory-close').disabled).toBe(false);
+    });
+
+    it('locks again from zero each time the banner is shown', () => {
+      const overlay = new VictoryOverlay($('#victory'), { onNewPosition: vi.fn() });
+      overlay.show();
+      vi.advanceTimersByTime(1000);
+      overlay.hide();
+
+      overlay.show();
+      vi.advanceTimersByTime(500);
+      expect($<HTMLButtonElement>('#victory-new').disabled).toBe(true);
+      vi.advanceTimersByTime(500);
+      expect($<HTMLButtonElement>('#victory-new').disabled).toBe(false);
+    });
+
+    it('does not leave the buttons disabled once the banner is hidden early', () => {
+      const overlay = new VictoryOverlay($('#victory'), { onNewPosition: vi.fn() });
+      overlay.show();
+      overlay.hide();
+      expect($<HTMLButtonElement>('#victory-new').disabled).toBe(false);
+    });
+
+    it('accepts a custom lock duration', () => {
+      new VictoryOverlay($('#victory'), { onNewPosition: vi.fn() }, Math.random, {
+        lockMs: 250,
+      }).show();
+      vi.advanceTimersByTime(250);
+      expect($<HTMLButtonElement>('#victory-new').disabled).toBe(false);
+    });
   });
 });
