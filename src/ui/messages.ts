@@ -3,7 +3,7 @@ import { LichessError } from '../services/lichess';
 /** All user-facing strings, in one place (French). */
 export const messages = {
   yourTurn: (color: 'white' | 'black'): string =>
-    `Tu joues les ${color === 'white' ? 'blancs' : 'noirs'} : trouve le coup de ton étude.`,
+    `Tu joues les ${color === 'white' ? 'blancs' : 'noirs'} : trouve le coup de l'étude.`,
   correct: (san: string): string => `✔ Correct : ${san}`,
   /** Read by screen readers only: sighted users get the visual "hit" effect instead. */
   wrongAnnouncement: (tries: number): string => `Mauvais coup (essai ${tries}).`,

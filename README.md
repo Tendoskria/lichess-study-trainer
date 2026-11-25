@@ -3,7 +3,7 @@
 [![CI](https://github.com/Tendoskria/lichess-study-trainer/actions/workflows/ci.yml/badge.svg)](https://github.com/Tendoskria/lichess-study-trainer/actions/workflows/ci.yml)
 
 Entraîne-toi sur tes ouvertures en rejouant les lignes de **tes propres études Lichess** :
-l’application affiche une position tirée de ton étude et tu dois retrouver le coup prévu.
+l’application affiche une position tirée d'une étude publique et tu dois retrouver le coup prévu.
 
 > Projet indépendant, non affilié à Lichess.
 
@@ -26,7 +26,7 @@ l’application affiche une position tirée de ton étude et tu dois retrouver l
   les couper (choix mémorisé). Tous les sons sont synthétisés avec Web Audio (aucun fichier audio) :
   les coups reposent sur un modèle de résonances de bois.
 - « Indice » met en surbrillance la pièce à jouer, et « Voir le coup » dessine le coup attendu.
-- Les flèches et cases colorées de ton étude (`[%cal]`, `[%csl]`) s’affichent sur la position en cours ; l’ampoule 💡 les affiche ou les masque (réglage mémorisé).
+- Les flèches et cases colorées d'une étude publique (`[%cal]`, `[%csl]`) s’affichent sur la position en cours ; l’ampoule 💡 les affiche ou les masque (réglage mémorisé).
 - Échiquier SVG : clic ou glisser-déposer, coups légaux et captures signalés comme sur Lichess.
 - Navigation dans l’historique : `←` `→` `↑` `↓` / `Début` `Fin`, ou clic sur un coup.
 - Thème clair/sombre automatique, étude mémorisée dans le navigateur.
@@ -40,7 +40,7 @@ npm ci
 npm run dev        # http://localhost:5173
 ```
 
-Au premier lancement, la page d’accueil te mène à la page de chargement : saisis ton pseudo Lichess.
+Au premier lancement, la page d’accueil te mène à la page de chargement : saisis un pseudo Lichess.
 
 ## Scripts
 
