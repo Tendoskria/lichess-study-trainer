@@ -297,9 +297,23 @@ describe('App', () => {
 
       it('starts a new exercise from the banner button', () => {
         finishLine();
+        vi.advanceTimersByTime(1000);
         $<HTMLButtonElement>('#victory-new').click();
         expect(victory().hidden).toBe(true);
         expect($('#message').textContent).toContain('noirs');
+      });
+
+      it('ignores the banner buttons for one second after the line is solved', () => {
+        finishLine();
+
+        vi.advanceTimersByTime(900);
+        $<HTMLButtonElement>('#victory-new').click();
+        $<HTMLButtonElement>('#victory-close').click();
+        expect(victory().hidden).toBe(false);
+
+        vi.advanceTimersByTime(100);
+        $<HTMLButtonElement>('#victory-close').click();
+        expect(victory().hidden).toBe(true);
       });
     });
 

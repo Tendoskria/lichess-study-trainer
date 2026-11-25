@@ -7,9 +7,16 @@ const CONFETTI_COLORS = ['#f5c542', '#e5604f', '#4fb3e5', '#7ccd8a', '#c58af0', 
 const SPARKLE_COLORS = ['#ffe58a', '#ffffff', '#f5c542'];
 /** The banner and the effects start slightly after the last move, so the board is seen first. */
 const START_DELAY_S = 0.35;
+/** The banner's buttons stay disabled this long, so a click meant for the board can't dismiss it. */
+const BUTTONS_LOCK_MS = 1000;
 
 export interface VictoryHandlers {
   onNewPosition(): void;
+}
+
+export interface VictoryOptions {
+  /** How long the buttons stay disabled after the banner appears, in ms. */
+  readonly lockMs?: number;
 }
 
 /**
@@ -19,15 +26,23 @@ export interface VictoryHandlers {
  */
 export class VictoryOverlay {
   private readonly effects: HTMLElement;
+  private readonly buttons: HTMLButtonElement[];
+  private readonly lockMs: number;
+  private unlockTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private readonly root: HTMLElement,
     handlers: VictoryHandlers,
     private readonly rng: Rng = Math.random,
+    options: VictoryOptions = {},
   ) {
+    this.lockMs = options.lockMs ?? BUTTONS_LOCK_MS;
     this.effects = requireElement(root, '.victory-fx');
-    requireElement(root, '#victory-new').addEventListener('click', () => handlers.onNewPosition());
-    requireElement(root, '#victory-close').addEventListener('click', () => this.hide());
+    const newPosition = requireElement<HTMLButtonElement>(root, '#victory-new');
+    const close = requireElement<HTMLButtonElement>(root, '#victory-close');
+    this.buttons = [newPosition, close];
+    newPosition.addEventListener('click', () => handlers.onNewPosition());
+    close.addEventListener('click', () => this.hide());
   }
 
   get visible(): boolean {
@@ -36,12 +51,30 @@ export class VictoryOverlay {
 
   show(): void {
     this.effects.replaceChildren(...this.createConfetti(), ...this.createSparkles());
+    this.lockButtons();
     this.root.hidden = false;
   }
 
   hide(): void {
+    clearTimeout(this.unlockTimer);
+    this.unlockTimer = undefined;
+    this.setButtonsDisabled(false);
     this.root.hidden = true;
     this.effects.replaceChildren();
+  }
+
+  /** Disables the buttons for a moment: the player was probably still clicking on the board. */
+  private lockButtons(): void {
+    clearTimeout(this.unlockTimer);
+    this.setButtonsDisabled(true);
+    this.unlockTimer = setTimeout(() => {
+      this.unlockTimer = undefined;
+      this.setButtonsDisabled(false);
+    }, this.lockMs);
+  }
+
+  private setButtonsDisabled(disabled: boolean): void {
+    for (const button of this.buttons) button.disabled = disabled;
   }
 
   private between(min: number, max: number): number {
